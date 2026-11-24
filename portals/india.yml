@@ -1,0 +1,207 @@
+# portals/india.yml — Indian companies whose ATS job board responds.
+# Checked 2026-11-24: every entry below returned HTTP 200 from its Greenhouse / Lever / Ashby API.
+# Adapted from career-ops-india (MIT, see THIRD_PARTY_NOTICES.md); unreachable entries moved to
+# india-unverified.yml.
+# Added 2026-11-24: 17 global companies whose boards had India AI/ML jobs that day (under
+# "Global, India AI roles" below). For these, hq lists the Indian cities of their India jobs.
+#
+# To add a company: find its board slug, check the URL returns JSON, then add 4 lines.
+#   greenhouse: https://boards-api.greenhouse.io/v1/boards/SLUG/jobs
+#   lever:      https://api.lever.co/v0/postings/SLUG?mode=json
+#   ashby:      https://api.ashbyhq.com/posting-api/job-board/SLUG
+
+greenhouse:
+
+  - name: Druva
+    slug: druva
+    tier: "2"
+    domain: cloud/data
+    hq: Pune
+
+  - name: InMobi
+    slug: inmobi
+    tier: "1"
+    domain: adtech
+    hq: Bangalore
+
+  - name: Sigmoid
+    slug: sigmoid
+    tier: "2"
+    domain: data engineering
+    hq: Bangalore
+
+  - name: Groww
+    slug: groww
+    tier: "1"
+    domain: fintech/investment
+    hq: Bangalore
+
+  - name: Zenoti
+    slug: zenoti
+    tier: "2"
+    domain: SaaS/wellness
+    hq: Hyderabad
+
+  - name: Observe.AI
+    slug: observeai
+    tier: "2"
+    domain: AI/contact center
+    hq: Bangalore
+
+  - name: CloudSEK
+    slug: cloudsek
+    tier: "2"
+    domain: cybersecurity/AI
+    hq: Bangalore
+
+# Global, India AI roles
+
+  - name: Twilio
+    slug: twilio
+    tier: "2"
+    domain: communications APIs
+    hq: India
+
+  - name: Coinbase
+    slug: coinbase
+    tier: "2"
+    domain: crypto
+    hq: India
+
+  - name: GitLab
+    slug: gitlab
+    tier: "2"
+    domain: devtools
+    hq: Bangalore
+
+  - name: Rubrik
+    slug: rubrik
+    tier: "2"
+    domain: data security
+    hq: Bangalore, Pune, Mumbai, Delhi
+
+  - name: Databricks
+    slug: databricks
+    tier: "2"
+    domain: data/AI platform
+    hq: Bengaluru, Mumbai
+
+  - name: Netradyne
+    slug: netradyne
+    tier: "2"
+    domain: AI/fleet safety
+    hq: Bengaluru
+
+  - name: MongoDB
+    slug: mongodb
+    tier: "2"
+    domain: database
+    hq: Gurugram, Bengaluru, Mumbai
+
+  - name: Netskope
+    slug: netskope
+    tier: "2"
+    domain: cybersecurity
+    hq: Bengaluru
+
+  - name: Elastic
+    slug: elastic
+    tier: "2"
+    domain: search/observability
+    hq: Bangalore, Mumbai, Delhi
+
+  - name: Glance
+    slug: glance
+    tier: "2"
+    domain: AI/consumer
+    hq: Bangalore
+
+  - name: Anthropic
+    slug: anthropic
+    tier: "2"
+    domain: AI/LLM
+    hq: Bangalore, Mumbai
+
+lever:
+
+  - name: CRED
+    slug: cred
+    tier: "1"
+    domain: fintech
+    hq: Bangalore
+
+  - name: Meesho
+    slug: meesho
+    tier: "1"
+    domain: social commerce
+    hq: Bangalore
+
+  - name: Mindtickle
+    slug: mindtickle
+    tier: "2"
+    domain: SaaS/sales enablement
+    hq: Pune
+
+  - name: Fampay
+    slug: fampay
+    tier: "2"
+    domain: neobank/teen
+    hq: Bangalore
+
+  - name: Zeta Suite
+    slug: zeta
+    tier: "2"
+    domain: HR/benefits SaaS
+    hq: Bangalore
+
+  - name: Pocket FM
+    slug: pocketfm
+    tier: "2"
+    domain: audio content
+    hq: Bangalore
+
+ashby:
+
+  - name: Sarvam AI
+    slug: sarvam
+    tier: "1"
+    domain: AI/LLM
+    hq: Bangalore
+
+# Global, India AI roles
+
+  - name: OpenAI
+    slug: openai
+    tier: "2"
+    domain: AI/LLM
+    hq: Delhi, Bangalore, Mumbai
+
+  - name: Level AI
+    slug: level-ai
+    tier: "2"
+    domain: AI/contact center
+    hq: Bengaluru
+
+  - name: Composio
+    slug: composio
+    tier: "2"
+    domain: AI agent tooling
+    hq: Bangalore
+
+  - name: Bureau
+    slug: bureau
+    tier: "2"
+    domain: identity/fraud
+    hq: Bangalore, Mumbai
+
+  - name: Snowflake
+    slug: snowflake
+    tier: "2"
+    domain: data cloud
+    hq: Bangalore, Pune, Mumbai
+
+  - name: Atlan
+    slug: atlan
+    tier: "2"
+    domain: data catalog
+    hq: India
