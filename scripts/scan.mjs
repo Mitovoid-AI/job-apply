@@ -155,6 +155,15 @@ function matches(job, roles, maxExp) {
   return (titleMatch || kwMatch) && locMatch && noNoise && levelOk;
 }
 
+// "core" = the title names one of your target_roles, or an AI/ML term followed by engineer/developer
+// ("ML Ops Engineer", "AI/ML Engineer II"). Other matches (Data Scientist, SDE - AI, AI Infrastructure)
+// are "adjacent"; the dashboard hides them unless you switch them on.
+const CORE_TITLE = /\b(ai|ml|llm|llms|genai|gen ai|nlp|machine learning|generative ai|computer vision)\b.*\b(engineer|developer)\b|\bmle\b/;
+function roleMatch(job, roles) {
+  const t = job.title.toLowerCase();
+  return roles.some(r => t.includes(r.toLowerCase())) || CORE_TITLE.test(t) ? "core" : "adjacent";
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const boardFilter = args.find(a => a.startsWith("--board="))?.split("=")[1];
@@ -204,6 +213,8 @@ const unique = results.filter(j => {
   if (seen.has(key)) return false;
   seen.add(key); return true;
 });
+for (const j of unique) j.match = roleMatch(j, roles);
+const coreCount = unique.filter(j => j.match === "core").length;
 
 // Sort: tier 1 first, then by source
 unique.sort((a,b) => (a.tier === "1" ? -1 : 1) - (b.tier === "1" ? -1 : 1));
@@ -218,7 +229,7 @@ fs.writeFileSync(path.join(dataDir, "scan_results.json"), JSON.stringify(out, nu
 if (jsonMode) { console.log(JSON.stringify(out)); process.exit(0); }
 
 console.log(`\n${"─".repeat(50)}`);
-console.log(`✅ ${unique.length} matching jobs found  |  ⚠️  ${errors.length} companies unreachable`);
+console.log(`✅ ${unique.length} matching jobs found (${coreCount} in your target roles)  |  ⚠️  ${errors.length} companies unreachable`);
 console.log(`${"─".repeat(50)}\n`);
 
 if (unique.length === 0) {

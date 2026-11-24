@@ -63,6 +63,7 @@ def list_jobs() -> list[dict]:
             "department": base.get("department", ""),
             "remote": bool(base.get("remote")),
             "in_scan": in_scan,
+            "match": base.get("match"),  # "core" | "adjacent" from the scan; None if not scanned
             "fit": fit_for(jid),
             "pipeline": entry,
         }
