@@ -49,7 +49,11 @@
 5. **Blockers:** CAPTCHA on the page, login wall, odd upload rules (e.g. Word file only).
 
 ## Step 3 — Review table (save it, show it, then stop)
-Save the full detail to `data/apply/<YYYY-MM-DD>-batch-<n>.md` (gitignored), then show:
+Save the batch as `data/apply/<YYYY-MM-DD>-batch-<n>.json` (gitignored) in the schema at the top
+of `backend/apply.py`: one entry per job with every form field as
+`{key, label, required, type, options, value, source, approved, note}`, where `source` is
+`profile`, `resume`, `draft` (your text, `approved: false`), `need` (empty, the user must answer)
+or `empty` (optional, left blank). The dashboard's Apply page edits this file. Then show:
 
 ```
 | # | Company · Role | Grade | Resume (base, pages) | Key answers | Drafts | Needs from you | Blockers |
@@ -63,21 +67,31 @@ Save the full detail to `data/apply/<YYYY-MM-DD>-batch-<n>.md` (gitignored), the
 Consent checkboxes: 1 → "I agree to the privacy policy" (required)
 ```
 
-End with: *Reply with the numbers to submit, e.g. `submit 1, 3`, plus any edits
-(`1a: <your text>`, `2: expected CTC 18 LPA`). Nothing is sent until you do.*
+Then run `python -m backend.batch_cli shown <batch>` (records what you showed).
+
+End with: *Reply with the numbers to submit, e.g. `submit 1, 3 from batch <batch>`, plus any
+edits (`1a: <your text>`, `2: expected CTC 18 LPA`), or fix answers on the dashboard's Apply
+page first. Nothing is sent until you reply.*
 Then **stop and wait** for the user's reply.
 
 ## Step 4 — Submit only what was approved
-Read the user's reply: only the numbers they listed, with their edits applied. A job that
-still has an unanswered NEED is skipped (say so). For each approved job, one at a time:
-1. Open the form fresh. Fill every field from the approved table and attach `resume_pdf`.
+Read the user's reply: only the numbers they listed, with their edits applied. Then:
+- Run `python -m backend.batch_cli changes <batch>`. If it lists changes (the user edited the
+  batch on the dashboard after you showed it), show those lines and ask once before submitting.
+- Re-read the batch JSON and use its current values.
+- A job that still has an unanswered `need`, or a draft that isn't approved, is skipped (say so).
+
+For each approved job, one at a time:
+1. Open the form fresh. Fill every field from the batch and attach `resume_pdf`.
 2. Re-read the filled form and compare it with the approved table. If anything differs (a new
    required question, different options, a CAPTCHA, a login wall) → don't submit; tell the
    user what changed and move on.
 3. Click Submit once. Wait for the confirmation message or page. No confirmation after about
    15 s → check the page and report it as "unclear"; never submit a second time.
 4. Update the pipeline entry: `status: applied`, `date_applied` today, `applied_via: claude`,
-   `resume_pdf`, `apply_batch`, and the confirmation text in `notes`.
+   `resume_pdf`, `apply_batch`, and the confirmation text in `notes`. Record the outcome in the
+   batch: `python -m backend.batch_cli result <batch> <n> submitted "<confirmation>"` (or
+   `skipped` / `failed` / `unclear` with the reason).
 
 Finish with a table: submitted / skipped (why) / failed, then run `npm run verify`.
 
