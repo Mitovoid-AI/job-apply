@@ -1,6 +1,7 @@
 """Jobs = scan results merged with the tracker (data/pipeline.json), keyed by URL."""
 
 import hashlib
+import time
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
@@ -38,10 +39,33 @@ def _days_since(iso: str | None) -> int | None:
         return None
 
 
-def list_jobs() -> list[dict]:
-    """Every scanned job plus every tracked job, one row per URL."""
-    from .jd import fit_for  # local import: jd imports jobs helpers
+_LIST_CACHE: dict = {"key": None, "at": 0.0, "rows": []}
 
+
+def _mtime(p) -> float:
+    try:
+        return p.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def list_jobs() -> list[dict]:
+    """Every scanned job plus every tracked job, one row per URL. With thousands of jobs this takes
+    seconds, so the result is kept for 30 s, or until a scan, the tracker, the LinkedIn jobs, the
+    profile or the JD cache changes. Callers get copies, so they may change them."""
+    key = tuple(_mtime(p) for p in (settings.SCAN_RESULTS, settings.PIPELINE, settings.LINKEDIN_JOBS,
+                                    settings.PROFILE, settings.JD_CACHE))
+    if _LIST_CACHE["key"] == key and time.monotonic() - _LIST_CACHE["at"] < 30:
+        return [dict(r) for r in _LIST_CACHE["rows"]]
+    rows = _build_list()
+    _LIST_CACHE.update(key=key, at=time.monotonic(), rows=rows)
+    return [dict(r) for r in rows]
+
+
+def _build_list() -> list[dict]:
+    from .jd import _experience, fit_for  # local import: jd imports jobs helpers
+
+    exp = _experience()  # once, not once per job
     scan = load_scan()
     pipeline = load_pipeline()
     by_url = {norm_url(p.get("url", "")): p for p in pipeline if p.get("url")}
@@ -64,12 +88,16 @@ def list_jobs() -> list[dict]:
             "remote": bool(base.get("remote")),
             "in_scan": in_scan,
             "match": base.get("match"),  # "core" | "adjacent" from the scan; None if not scanned
-            "fit": fit_for(jid),
+            "fit": fit_for(jid, exp),
             "pipeline": entry,
         }
 
     for j in scan.get("jobs", []):
         rows.append(row(j, by_url.get(norm_url(j.get("url", ""))), True))
+    from .linkedin import load as load_linkedin  # jobs from LinkedIn alert emails (dated by import)
+    for j in load_linkedin():
+        if norm_url(j["url"]) not in seen:
+            rows.append(row({**j, "posted_at": j.get("imported_at")}, by_url.get(norm_url(j["url"])), True))
     for p in pipeline:
         if p.get("url") and norm_url(p["url"]) not in seen:
             rows.append(row({}, p, False))
@@ -79,6 +107,7 @@ def list_jobs() -> list[dict]:
 def overview() -> dict:
     from .apply import batch_summaries
     from .profile import missing_fields
+    from .runners import discovery_info, discovery_stale
 
     scan = load_scan()
     pipeline = load_pipeline()
@@ -95,6 +124,11 @@ def overview() -> dict:
         if p.get("status") == "applied" and (_days_since(p.get("date_applied")) or 0) > 21:
             needs.append({"kind": "no_reply", "job_id": jid,
                           "text": f"No reply from {p.get('company')} in {_days_since(p.get('date_applied'))} days"})
+    stale = discovery_stale()
+    if stale in ("missing", "profile_changed"):
+        needs.append({"kind": "discover", "job_id": None,
+                      "text": "Your company list isn't built yet: run Find companies" if stale == "missing"
+                      else "Your roles or locations changed: run Find companies to update your company list"})
     missing = missing_fields()
     if missing:
         needs.append({"kind": "profile", "job_id": None,
@@ -107,6 +141,7 @@ def overview() -> dict:
 
     return {
         "last_scan": scan.get("scanned_at"),
+        "companies": discovery_info(),
         "scan_errors": scan.get("errors", 0),
         "scan_failed": [f.get("company") for f in scan.get("failed", [])],
         "counts": {

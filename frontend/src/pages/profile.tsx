@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/app-shell'
+import { useTasks } from '@/components/tasks'
 import { api, put } from '@/lib/api'
 import { humanKey } from '@/lib/format'
 import type { Profile } from '@/lib/types'
@@ -86,6 +87,7 @@ const num = (s: string) => (s === '' ? null : Number(s))
 
 export default function ProfilePage() {
   const qc = useQueryClient()
+  const { start } = useTasks()
   const { data } = useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/profile') })
   const form = useForm<Form>({ resolver: zodResolver(schema) })
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = form
@@ -120,7 +122,11 @@ export default function ProfilePage() {
       qc.setQueryData(['profile'], p)
       qc.invalidateQueries({ queryKey: ['overview'] })
       qc.invalidateQueries({ queryKey: ['jobs'] })
-      toast.success('Profile saved')
+      // New roles or locations (or no company list yet): rebuild the company list for them.
+      if (p.company_list_stale === 'profile_changed' || p.company_list_stale === 'missing') {
+        toast.success('Profile saved. Finding companies for your roles (a few minutes)…')
+        start('/discover', 'Finding companies')
+      } else toast.success('Profile saved')
     },
     onError: e => toast.error((e as Error).message),
   })

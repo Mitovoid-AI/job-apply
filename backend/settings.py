@@ -30,6 +30,9 @@ PROFILE = ROOT / "config" / "profile.yml"
 CV = ROOT / "cv.md"
 PIPELINE = DATA / "pipeline.json"
 SCAN_RESULTS = DATA / "scan_results.json"
+COMPANIES = DATA / "companies.json"  # written by Find companies (scan.mjs --discover)
+LINKEDIN_JOBS = DATA / "linkedin_jobs.json"  # jobs imported from LinkedIn job-alert emails
+LINKEDIN_INBOX = DATA / "linkedin-alerts"  # drop alert .eml files here; each scan imports them
 TOKEN_FILE = DATA / ".dashboard-token"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
 
@@ -57,6 +60,9 @@ DAILY_SCAN_AT = os.environ.get("DAILY_SCAN_AT", "").strip()
 AUTO_PREPARE = {s.strip() for s in os.environ.get("AUTO_PREPARE", "fits,stretch").split(",") if s.strip()}
 # Also grade prepared jobs with headless Claude Code (needs `claude` signed in).
 AUTO_EVALUATE = os.environ.get("AUTO_EVALUATE", "1").strip() not in ("0", "false", "no", "")
+# At most this many new jobs are auto-prepared per scan (each one costs AI calls); the rest keep
+# their Prepare button. Your roles first, then fits before stretch, then newest.
+AUTO_PREPARE_MAX = int(os.environ.get("AUTO_PREPARE_MAX", "10") or 10)
 
 for d in (DATA, REPORTS, APPLY_DIR, JD_CACHE):
     d.mkdir(parents=True, exist_ok=True)

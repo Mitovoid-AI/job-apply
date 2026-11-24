@@ -83,11 +83,12 @@ export interface Overview {
   }
   funnel: { stage: string; value: number }[]
   needs_action: { kind: string; job_id: string | null; text: string }[]
+  companies?: { at: string | null; companies: number; boards_checked: number; stale: string | null } | null
 }
 
 export interface Task {
   id: string
-  kind: 'scan' | 'resume' | 'evaluate' | 'prepare' | 'window'
+  kind: 'scan' | 'discover' | 'resume' | 'evaluate' | 'prepare' | 'window'
   key: string
   status: 'running' | 'done' | 'error'
   started_at: string
@@ -103,6 +104,7 @@ export interface Profile {
   salary: { min: number | null; max: number | null; walk_away: number | null }
   missing: string[]
   optional: string[]
+  company_list_stale?: string | null  // only in the save response
 }
 
 export interface BatchField {
@@ -171,7 +173,8 @@ export interface Health {
 }
 
 export interface WindowState {
-  status: 'idle' | 'opening' | 'filling' | 'waiting' | 'submitted' | 'closed' | 'timeout'
+  status: 'idle' | 'opening' | 'filling' | 'waiting' | 'submitting' | 'needs_you' | 'submitted' | 'closed' | 'timeout'
+  reason?: string | null  // needs_you: why the Submit button handed the window back
   batch?: string
   n?: number
   company?: string

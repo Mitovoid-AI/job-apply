@@ -6,6 +6,9 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -113,6 +116,8 @@ function WindowBanner() {
     opening: `Opening ${who} in a Chrome window…`,
     filling: `Filling the form for ${who}…`,
     waiting: `Your turn: check the Chrome window for ${who} and press Submit there.`,
+    submitting: `Submitting ${who}: Submit was pressed, waiting for the confirmation page…`,
+    needs_you: `${who}: not submitted yet. ${data.reason ?? ''} The Chrome window is waiting for you.`,
     submitted: `${who}: submitted. It's marked Applied in your pipeline.`,
     closed: `${who}: the window was closed. Nothing was submitted.`,
     timeout: `${who}: the window timed out. Nothing was submitted.`,
@@ -120,13 +125,15 @@ function WindowBanner() {
   const left = [...(data.missing ?? []), ...(data.problems ?? []).map(p => p.label)]
   return (
     <div className={cn('rounded-md border p-3 text-sm',
-      data.status === 'submitted' ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-sky-500/30 bg-sky-500/10')}>
+      data.status === 'submitted' ? 'border-emerald-500/40 bg-emerald-500/10'
+        : data.status === 'needs_you' ? 'border-amber-500/40 bg-amber-500/10' : 'border-sky-500/30 bg-sky-500/10')}>
       <div className="flex items-center gap-2">
-        {['opening', 'filling'].includes(data.status) && <Loader2 className="size-4 animate-spin" />}
+        {['opening', 'filling', 'submitting'].includes(data.status) && <Loader2 className="size-4 animate-spin" />}
+        {data.status === 'needs_you' && <AlertTriangle className="size-4 shrink-0 text-amber-600" />}
         {data.status === 'submitted' && <Check className="size-4 text-emerald-600" />}
         <span>{text[data.status]}</span>
       </div>
-      {data.status === 'waiting' && left.length > 0 && (
+      {(data.status === 'waiting' || data.status === 'needs_you') && left.length > 0 && (
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
           Fill these in the window yourself: {[...new Set(left)].join(' · ')}
         </p>
@@ -140,6 +147,50 @@ function WindowBanner() {
         </div>
       )}
     </div>
+  )
+}
+
+// Submit from the dashboard: one job per click, after a confirmation. The window fills the form and
+// presses the site's Submit only if nothing's empty and no CAPTCHA shows; otherwise it waits for you.
+function SubmitButton({ batch, job, blockedReason }: { batch: string; job: BatchJob; blockedReason: string | null }) {
+  const { start, isRunning } = useTasks()
+  const [open, setOpen] = useState(false)
+  const busy = isRunning('window')
+  return (
+    <>
+      <Button variant="default" disabled={!!blockedReason || busy} onClick={() => setOpen(true)}
+        title={blockedReason ? `Not ready: ${blockedReason}` : 'Fill the form and press its Submit button for you'}>
+        <Send /> Submit
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit your application to {job.company}?</DialogTitle>
+            <DialogDescription>
+              {job.role}. A Chrome window opens on this laptop, fills every answer shown on this page, attaches
+              {job.resume_pdf ? ' your tailored resume' : ' your resume'} and presses the site's Submit button. If a
+              required field is empty, a CAPTCHA shows up or the site reports an error, it stops and leaves the window
+              for you. This can't be undone once the site accepts it.
+            </DialogDescription>
+          </DialogHeader>
+          {!!job.consent?.length && (
+            <p className="flex items-start gap-2 rounded-md border p-2 text-xs text-muted-foreground">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+              <span>By submitting you agree to: {job.consent.join(' · ')}</span>
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setOpen(false)
+              start(`/apply/batches/${batch}/jobs/${job.n}/submit`, `Submitting to ${job.company}`)
+            }}>
+              <Send /> Submit application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -209,13 +260,14 @@ function JobBlock({ batch, job }: { batch: string; job: BatchJob }) {
         )}
         {!done && (
           <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-            <Button onClick={() => !opening && start(`/apply/batches/${batch}/jobs/${job.n}/open`, `Form for ${job.company}`)}>
+            <SubmitButton batch={batch} job={job} blockedReason={blockedReason} />
+            <Button variant="outline" onClick={() => !opening && start(`/apply/batches/${batch}/jobs/${job.n}/open`, `Form for ${job.company}`)}>
               {opening ? <Loader2 className="animate-spin" /> : <MonitorUp />}
               {opening ? 'Form window open…' : 'Open filled form'}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Opens Chrome on this laptop with every answer filled and your resume attached. Check it, then press
-              Submit there.{job.summary.needs ? ` ${job.summary.needs} answer${job.summary.needs === 1 ? '' : 's'} left for you to fill in.` : ''}
+              Submit fills the form and presses its Submit button for you. Open filled form fills it and lets you
+              press Submit yourself.{job.summary.needs ? ` ${job.summary.needs} answer${job.summary.needs === 1 ? '' : 's'} left for you to fill in.` : ''}
             </span>
           </div>
         )}

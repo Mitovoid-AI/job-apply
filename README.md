@@ -3,32 +3,49 @@
 Find, evaluate, tailor and track job applications at Indian companies, with a local dashboard
 and Claude Code.
 
-- **Find:** scans the public job boards (Greenhouse, Lever, Ashby) of the companies in
-  `portals/india.yml` and reads how many years of experience each job asks for. AI/ML jobs
-  outside your `target_roles` (Data Scientist, SDE - AI…) are labelled adjacent and hidden on
-  the Jobs page until you switch them on.
+- **Find:** two steps, both driven by the `target_roles`, `experience_years` and `locations` in your
+  profile.
+  - **Find companies** checks about 11,500 company job boards on Greenhouse, Lever and Ashby (the
+    list in `portals/registry.json`) and keeps the companies with jobs for your roles in
+    `data/companies.json`. It takes several minutes, runs on its own when your roles or locations
+    change and once a week (with `DAILY_SCAN_AT` set), and has its own button.
+  - **Scan now** checks today's openings at those companies plus the starting list in
+    `portals/india.yml`, then reads how many years of experience each job asks for.
+
+  A job matches when its title names one of your roles (the role's words in order, at most one
+  extra word between them, or "Engineer, Machine Learning" style). If your roles are AI/ML, other
+  AI/ML titles (Data Scientist, SDE - AI…) also show, labelled adjacent and hidden on the Jobs page
+  until you switch them on. Add `- Anywhere` to `locations` to search every country.
+- **LinkedIn alerts:** paste a LinkedIn job-alert email on the Jobs page (or drop `.eml` files in
+  `data/linkedin-alerts/`) to add its jobs. Only the email is read; LinkedIn isn't contacted.
 - **Evaluate:** grades a job A–F against your CV, using Claude Code in the background.
 - **Tailor:** builds a one-page resume for the job with your own resume tailor (a separate repo
   with `tailor.py --json`).
 - **Prepare:** after each scan, every job at your level gets a tailored resume and an answer for
   every field of its application form: profile values by rule, job-specific questions drafted by AI
   from your CV, and questions only you can answer left blank and flagged.
-- **Apply:** "Open filled form" starts Chrome **on your machine** with everything filled in and the
-  resume attached. You check it and press the site's Submit button; the confirmation page marks the
-  job Applied.
+- **Apply:** two buttons per prepared job.
+  - **Submit** (after you confirm): Chrome opens **on your machine**, fills everything, attaches the
+    resume and presses the site's Submit button. It only presses it when no required field is empty
+    and no CAPTCHA is showing; a CAPTCHA, an error or no confirmation page leaves the window for you.
+    It's disabled until every answer is filled and every AI draft approved.
+  - **Open filled form**: the same window, but you press the site's Submit button yourself.
+
+  Either way, the confirmation page marks the job Applied.
 - **Track:** a status board from "to apply" to "offer".
 
-No code ever presses Submit. You do, on the real form (or you tell Claude Code to, job by job; see
-`modes/apply.md`).
+Nothing is submitted without your click for that one job: the dashboard's Submit button, the site's
+own button, or telling Claude Code to, job by job (see `modes/apply.md`). There's no "submit all", and
+CAPTCHAs are never solved or worked around.
 
 ## Screens
 
 | Screen | What it does |
 |---|---|
 | Overview | Matches, jobs that fit your experience, a funnel, and what needs your attention |
-| Jobs | Filterable table with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions |
+| Jobs | Filterable table (experience, grade, status, company, posted) with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions. Import LinkedIn alert is here |
 | Pipeline | Drag-and-drop board of tracked jobs by status |
-| Apply | Prepared applications: check or edit any answer, then Open filled form and press Submit |
+| Apply | Prepared applications: check or edit any answer, approve AI drafts, then Submit (it presses the site's button for you) or Open filled form (you press it) |
 | Profile | The answers application forms ask for (notice period, CTC, LinkedIn…) |
 | Settings | Checks that Node, the tailor and Claude Code are set up |
 
@@ -63,7 +80,12 @@ It prints a link like `http://127.0.0.1:8765/#token=…` and opens it in your de
 `DASHBOARD_BROWSER` if set (for a Chromium-based browser that wraps Brave or Chrome, also set
 `DASHBOARD_BROWSER_PROFILE` to its profile folder so the link opens in the running window). Double-click `dashboard.pyw`
 to run it without a console window (logs go to `data/dashboard.log`). To scan every morning, set
-`DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running.
+`DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running. When the company list
+is missing, a week old or out of date with your profile, that morning run is Find companies instead
+(it ends with a scan).
+
+On a new install, save your roles on the Profile page: that starts Find companies. From the
+command line: `node scripts/scan.mjs --discover`, then `npm run scan`.
 
 Frontend development: run the backend, then `npm --prefix frontend run dev` and open the Vite
 URL with the same `#token=…`.
@@ -90,6 +112,8 @@ Everything stays in local files; there is no database:
 | `cv.md` | your CV |
 | `data/pipeline.json` | tracked jobs |
 | `data/scan_results.json`, `data/jd/` | latest scan and cached job descriptions |
+| `data/companies.json`, `data/registry_dead.json` | your company list from Find companies; boards that answered 404 (skipped for 30 days) |
+| `data/linkedin_jobs.json`, `data/linkedin-alerts/` | jobs imported from LinkedIn alerts (kept 30 days); the folder for alert `.eml` files |
 | `data/apply/*.json` | apply batches |
 | `reports/` | evaluation reports |
 
@@ -98,17 +122,29 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 ## Limits
 
-- Only 14 of the 253 companies inherited from career-ops-india have a job board that responds on
-  Greenhouse, Lever or Ashby. The rest are kept in `portals/india-unverified.yml` and aren't
-  scanned. `portals/india.yml` also has 17 global companies with India AI/ML jobs (31 boards in
-  all). Add companies there once you've checked their board URL.
-- The experience badge reads the first "N years" requirement in the description. It's a quick
-  filter, not a grade.
+- Only Greenhouse, Lever and Ashby boards are searched. Companies on Workday (blocked by a bot
+  check from most machines), Darwinbox, Keka, Zoho Recruit, TurboHire or their own sites aren't.
+  A measurement of Keka, Zoho Recruit and TurboHire tenants for 238 Indian companies found 12
+  AI/ML jobs in all, so they aren't added yet. `portals/india-unverified.yml` keeps the
+  career-ops-india companies whose boards didn't respond.
+- `portals/registry.json` is a snapshot; refresh it with `node scripts/update-registry.mjs`.
+- The experience badge reads the first required "N years" in the description (time frames like
+  "over the next 2 years", degrees and company history are skipped; "preferred" years cap the badge
+  at stretch). It's a quick filter, not a grade.
+- LinkedIn alert jobs can't be auto-prepared, evaluated or turned into a resume automatically,
+  because their pages aren't read. The alert parser was tested on hand-written samples, not on a
+  real alert.
 - Application forms with a CAPTCHA or a login stop and hand over to you. There is no CAPTCHA
   workaround, by design.
 - Form filling is tested on Greenhouse, Lever and Ashby forms. Searchable dropdowns (school, city)
   are matched by closest name; anything that doesn't fill is listed so you fill it in the window.
   Ashby's yes/no button questions aren't read yet.
+- An automated Submit click can still be scored as a bot by a site's hidden check (Greenhouse runs
+  one), so a few applications sent with the dashboard's Submit button might be quietly flagged. The
+  dashboard can't tell. Use Open filled form for jobs you care most about.
+- The Submit button was tested on local fake forms (normal, CAPTCHA, error, empty field) and its
+  button finder on real Greenhouse, Lever and Ashby forms without clicking; no real application was
+  sent while building it.
 - AI drafts only use your CV and profile, but read them before you press Submit: they're marked
   "draft" on the Apply page.
 - "Applied" is set when the site's confirmation page appears. If you close the window first, the
@@ -118,4 +154,6 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 The scanner, Claude Code modes and company list are adapted from
 [career-ops-india](https://github.com/AnojSKunte/career-ops-india) by Anoj S K (MIT), itself
-inspired by [career-ops](https://github.com/santifer/career-ops). See `THIRD_PARTY_NOTICES.md`.
+inspired by [career-ops](https://github.com/santifer/career-ops). The company registry in
+`portals/registry.json` comes from career-ops's employer registry (CC BY 4.0, see
+`portals/registry-NOTICE.md`). See `THIRD_PARTY_NOTICES.md`.

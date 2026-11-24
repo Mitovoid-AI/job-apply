@@ -7,6 +7,7 @@ import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } f
 import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/app-shell'
 import { CompanyAvatar, FitBadge } from '@/components/badges'
+import { useTasks } from '@/components/tasks'
 import { api } from '@/lib/api'
 import type { BatchSummary, Job, Overview } from '@/lib/types'
 
@@ -27,6 +28,7 @@ function Stat({ label, value, hint }: { label: string; value: number | undefined
 const NEED_LINK: Record<string, string> = { profile: '/profile', batch: '/apply' }
 
 export default function OverviewPage() {
+  const { start, isRunning } = useTasks()
   const { data } = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/overview') })
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => api<Job[]>('/jobs') })
   const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api<BatchSummary[]>('/apply/batches') })
@@ -90,6 +92,17 @@ export default function OverviewPage() {
                 </p>
               )}
               {data?.needs_action.map((n, i) => {
+                if (n.kind === 'discover') {
+                  const running = isRunning('discover')
+                  return (
+                    <button key={i} type="button" disabled={running} onClick={() => start('/discover', 'Finding companies')}
+                      className="flex w-full items-start gap-2 rounded-md p-2 text-left text-sm hover:bg-muted disabled:opacity-60">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                      <span className="flex-1">{running ? 'Finding companies for your roles…' : n.text}</span>
+                      <ArrowRight className="mt-0.5 size-4 text-muted-foreground" />
+                    </button>
+                  )
+                }
                 const to = n.job_id ? `/jobs?job=${n.job_id}` : NEED_LINK[n.kind] ?? '/'
                 return (
                   <Link key={i} to={to} className="flex items-start gap-2 rounded-md p-2 text-sm hover:bg-muted">

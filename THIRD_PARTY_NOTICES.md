@@ -29,3 +29,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ```
+
+## Company registry (CC BY 4.0)
+
+`portals/registry.json`, the company list that Find companies checks, is derived from the employer
+registry of [career-ops](https://github.com/career-ops-hq/career-ops) by Santiago Fernández de
+Valderrama, under the Creative Commons Attribution 4.0 International License. The credit, the
+changes made and the registry's own third-party notices are in `portals/registry-NOTICE.md`.

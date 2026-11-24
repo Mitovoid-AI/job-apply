@@ -64,8 +64,10 @@ export default function SettingsPage() {
             <CardTitle className="text-base">How submitting works</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>This dashboard never submits applications. On the Apply page, Open filled form starts a Chrome window on
-              this laptop with every answer filled and your resume attached; you press Submit there. Once the site
+            <p>Nothing is submitted without your click for that one job. On the Apply page, Submit (after you confirm)
+              starts a Chrome window on this laptop, fills every answer, attaches your resume and presses the site's
+              Submit button; if a required field is empty, a CAPTCHA shows or the site reports an error, it stops and
+              leaves the window for you. Open filled form does the same but you press Submit yourself. Once the site
               confirms, the job is marked Applied.</p>
             <p>The dashboard only listens on 127.0.0.1. Its access token is in data/.dashboard-token.</p>
           </CardContent>

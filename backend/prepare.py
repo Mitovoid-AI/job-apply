@@ -61,13 +61,18 @@ def prepare_job(job: dict, evaluate: bool | None = None) -> dict:
 
 
 def prepare_new() -> dict:
-    """Prepare every eligible job from the latest scan, one at a time."""
+    """Prepare up to AUTO_PREPARE_MAX eligible jobs from the latest scan, one at a time: your roles
+    before adjacent ones, fits before stretch, newest first."""
     prepared = apply.prepared_job_ids()
     todo = [j for j in jobs.list_jobs() if eligible(j, prepared)]
+    todo.sort(key=lambda j: j.get("posted_at") or "", reverse=True)
+    todo.sort(key=lambda j: (j.get("match") == "adjacent", (j.get("fit") or {}).get("level") != "fits"))
+    waiting = max(0, len(todo) - settings.AUTO_PREPARE_MAX)
+    todo = todo[:settings.AUTO_PREPARE_MAX]
     done, failed = [], []
     for job in todo:
         try:
             done.append(prepare_job(job))
         except Exception as e:
             failed.append({"company": job["company"], "role": job["title"], "error": str(e)[:200]})
-    return {"prepared": done, "failed": failed, "total": len(todo)}
+    return {"prepared": done, "failed": failed, "total": len(todo), "waiting": waiting}
