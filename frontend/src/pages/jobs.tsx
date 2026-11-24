@@ -11,7 +11,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AppShell, ScanButton } from '@/components/app-shell'
 import { CompanyAvatar, FitBadge, GradeBadge, StatusBadge } from '@/components/badges'
@@ -50,6 +52,7 @@ export default function JobsPage() {
   const [grades, setGrades] = useState<string[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
   const [companies, setCompanies] = useState<string[]>([])
+  const [showAdjacent, setShowAdjacent] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'fit', desc: false }])
 
   const { data: jobs = [], isLoading } = useQuery({ queryKey: ['jobs'], queryFn: () => api<Job[]>('/jobs') })
@@ -64,13 +67,15 @@ export default function JobsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return jobs.filter(j =>
-      (!q || `${j.title} ${j.company} ${j.location}`.toLowerCase().includes(q)) &&
+      (showAdjacent || j.match !== 'adjacent') &&
+      (!q ||`${j.title} ${j.company} ${j.location}`.toLowerCase().includes(q)) &&
       (!fits.length || fits.includes(fitKey(j))) &&
       (!grades.length || grades.includes(gradeKey(j))) &&
       (!statuses.length || statuses.includes(statusKey(j))) &&
       (!companies.length || companies.includes(j.company)),
     )
-  }, [jobs, search, fits, grades, statuses, companies])
+  }, [jobs, showAdjacent, search, fits, grades, statuses, companies])
+  const adjacentCount = jobs.filter(j => j.match === 'adjacent').length
 
   const columns = useMemo<ColumnDef<Job>[]>(() => [
     {
@@ -85,6 +90,7 @@ export default function JobsPage() {
             <div className="truncate text-xs text-muted-foreground">
               {j.company}
               {j.tier === '1' && ' · Tier 1'}
+              {j.match === 'adjacent' && ' · adjacent role'}
               {!j.in_scan && ' · not in latest scan'}
             </div>
           </div>
@@ -205,6 +211,14 @@ export default function JobsPage() {
               Reset <X />
             </Button>
           ) : null}
+          {adjacentCount > 0 && (
+            <div className="flex items-center gap-2">
+              <Switch id="show-adjacent" size="sm" checked={showAdjacent} onCheckedChange={setShowAdjacent} />
+              <Label htmlFor="show-adjacent" className="text-xs font-normal text-muted-foreground">
+                Adjacent roles ({adjacentCount})
+              </Label>
+            </div>
+          )}
           <span className="ml-auto text-xs text-muted-foreground">
             {filtered.length} of {jobs.length} jobs
           </span>

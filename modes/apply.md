@@ -1,7 +1,12 @@
 # apply.md — Assisted applications (prepare, review, then submit what's approved)
 > Trigger: "apply", "apply to these", "apply to the top N", /apply
 > Load first: `_shared.md`, `config/profile.yml` (`application_answers` + `candidate`), `data/pipeline.json`
-> Browser: Claude in Chrome (the user's Chrome). It can attach the resume PDF to the form.
+>
+> Usually the dashboard does this without you: after each scan it prepares jobs at the user's level
+> (`backend/prepare.py`) and its Apply page opens the filled form in Chrome on the user's machine
+> for them to press Submit. Use this mode when the user asks Claude to prepare or submit.
+> Browser: one that runs on the user's machine. Check before using Claude in Chrome: it may be
+> connected to a different computer.
 
 ## Ground rules (no exceptions)
 1. **Nothing is submitted without the user's OK for that job number in their latest message**

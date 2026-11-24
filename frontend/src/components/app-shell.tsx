@@ -64,7 +64,7 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <p className="px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Submitting happens in Claude Code, never from here.
+          Nothing is sent until you press Submit on the real form.
         </p>
       </SidebarFooter>
     </Sidebar>

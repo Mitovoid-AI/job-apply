@@ -27,6 +27,9 @@ const schema = z.object({
   notice_period: text, current_ctc_lpa: text, expected_ctc_lpa: text,
   willing_to_relocate: text, work_authorization_india: text,
   highest_degree: text, university: text, graduation_year: optionalNumber,
+  discipline: text, education_start_month: text, education_start_year: optionalNumber,
+  education_end_month: text, education_end_year: optionalNumber,
+  cgpa: text, class_12_percent: text, class_10_percent: text,
   how_did_you_hear: text, eeo_default: text,
   experience_years: optionalNumber, locations: text, target_roles: text,
   salary_min: optionalNumber, salary_max: optionalNumber, salary_walk_away: optionalNumber,
@@ -47,8 +50,12 @@ const GROUPS: { title: string; hint: string; fields: { key: keyof Form; placehol
       { key: 'work_authorization_india', placeholder: 'Yes, Indian citizen' }],
   },
   {
-    title: 'Education', hint: '',
-    fields: [{ key: 'highest_degree' }, { key: 'university' }, { key: 'graduation_year' }],
+    title: 'Education', hint: 'Greenhouse forms ask the start and end month. CGPA and 10th/12th % are only used when a form asks.',
+    fields: [{ key: 'highest_degree' }, { key: 'university' }, { key: 'discipline', placeholder: 'Computer Science' },
+      { key: 'graduation_year' }, { key: 'education_start_month', placeholder: 'November' },
+      { key: 'education_start_year', placeholder: '2022' }, { key: 'education_end_month', placeholder: 'May' },
+      { key: 'education_end_year', placeholder: '2026' }, { key: 'cgpa', placeholder: '8.2' },
+      { key: 'class_12_percent', placeholder: '87' }, { key: 'class_10_percent', placeholder: '90' }],
   },
   {
     title: 'Defaults', hint: 'Used when a form asks these.',
@@ -67,6 +74,9 @@ const LABELS: Partial<Record<keyof Form, string>> = {
   linkedin: 'LinkedIn', github: 'GitHub', current_ctc_lpa: 'Current CTC (LPA)', expected_ctc_lpa: 'Expected CTC (LPA)',
   work_authorization_india: 'Work authorization in India', eeo_default: 'Diversity questions answer',
   salary_min: 'Salary floor (LPA)', salary_max: 'Salary target (LPA)', salary_walk_away: 'Walk-away (LPA)',
+  cgpa: 'CGPA', class_12_percent: 'Class 12 (%)', class_10_percent: 'Class 10 (%)',
+  education_start_month: 'Start month', education_start_year: 'Start year',
+  education_end_month: 'End month', education_end_year: 'End year',
   experience_years: 'Years of experience (for matching)',
 }
 
@@ -99,6 +109,8 @@ export default function ProfilePage() {
           ...answers,
           total_experience_years: num(answers.total_experience_years) ?? '',
           graduation_year: num(answers.graduation_year) ?? '',
+          education_start_year: num(answers.education_start_year) ?? '',
+          education_end_year: num(answers.education_end_year) ?? '',
         },
         candidate: { experience_years: num(experience_years), locations: list(locations), target_roles: list(target_roles) },
         salary: { min: salary_min, max: salary_max, walk_away: salary_walk_away },

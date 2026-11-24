@@ -4,16 +4,22 @@ Find, evaluate, tailor and track job applications at Indian companies, with a lo
 and Claude Code.
 
 - **Find:** scans the public job boards (Greenhouse, Lever, Ashby) of the companies in
-  `portals/india.yml` and reads how many years of experience each job asks for.
+  `portals/india.yml` and reads how many years of experience each job asks for. AI/ML jobs
+  outside your `target_roles` (Data Scientist, SDE - AI…) are labelled adjacent and hidden on
+  the Jobs page until you switch them on.
 - **Evaluate:** grades a job A–F against your CV, using Claude Code in the background.
 - **Tailor:** builds a one-page resume for the job with your own resume tailor (a separate repo
   with `tailor.py --json`).
-- **Apply:** Claude Code reads the application form and prepares every answer. You review and fix
-  them on the dashboard, then tell Claude which ones to submit.
+- **Prepare:** after each scan, every job at your level gets a tailored resume and an answer for
+  every field of its application form: profile values by rule, job-specific questions drafted by AI
+  from your CV, and questions only you can answer left blank and flagged.
+- **Apply:** "Open filled form" starts Chrome **on your machine** with everything filled in and the
+  resume attached. You check it and press the site's Submit button; the confirmation page marks the
+  job Applied.
 - **Track:** a status board from "to apply" to "offer".
 
-Nothing is ever submitted from the dashboard. Submitting is always a message you send to Claude
-Code, job by job (see `modes/apply.md`).
+No code ever presses Submit. You do, on the real form (or you tell Claude Code to, job by job; see
+`modes/apply.md`).
 
 ## Screens
 
@@ -22,13 +28,15 @@ Code, job by job (see `modes/apply.md`).
 | Overview | Matches, jobs that fit your experience, a funnel, and what needs your attention |
 | Jobs | Filterable table with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions |
 | Pipeline | Drag-and-drop board of tracked jobs by status |
-| Apply | Edit the answers Claude prepared, fill in missing ones, approve drafts, copy the submit command |
+| Apply | Prepared applications: check or edit any answer, then Open filled form and press Submit |
 | Profile | The answers application forms ask for (notice period, CTC, LinkedIn…) |
 | Settings | Checks that Node, the tailor and Claude Code are set up |
 
 ## Setup
 
-Requires Python 3.11+, Node 18+, and (for Evaluate and Apply) Claude Code.
+Requires Python 3.11+, Node 18+, Google Chrome (reading and filling forms), an OpenAI-compatible
+AI key (drafting answers; your tailor's `.env` is reused if this repo has none), and, for grades,
+Claude Code.
 
 ```bash
 git clone https://github.com/Mitovoid-AI/job-apply && cd job-apply
@@ -51,7 +59,9 @@ terminal and use `/login`.
 python -m backend          # or double-click start-dashboard.cmd
 ```
 
-It prints a link like `http://127.0.0.1:8765/#token=…` and opens it. Double-click `dashboard.pyw`
+It prints a link like `http://127.0.0.1:8765/#token=…` and opens it in your default browser, or in
+`DASHBOARD_BROWSER` if set (for a Chromium-based browser that wraps Brave or Chrome, also set
+`DASHBOARD_BROWSER_PROFILE` to its profile folder so the link opens in the running window). Double-click `dashboard.pyw`
 to run it without a console window (logs go to `data/dashboard.log`). To scan every morning, set
 `DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running.
 
@@ -90,10 +100,19 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 - Only 14 of the 253 companies inherited from career-ops-india have a job board that responds on
   Greenhouse, Lever or Ashby. The rest are kept in `portals/india-unverified.yml` and aren't
-  scanned. Add companies to `portals/india.yml` once you've checked their board URL.
+  scanned. `portals/india.yml` also has 17 global companies with India AI/ML jobs (31 boards in
+  all). Add companies there once you've checked their board URL.
 - The experience badge reads the first "N years" requirement in the description. It's a quick
   filter, not a grade.
-- Application forms with a CAPTCHA or a login stop and hand over to you.
+- Application forms with a CAPTCHA or a login stop and hand over to you. There is no CAPTCHA
+  workaround, by design.
+- Form filling is tested on Greenhouse, Lever and Ashby forms. Searchable dropdowns (school, city)
+  are matched by closest name; anything that doesn't fill is listed so you fill it in the window.
+  Ashby's yes/no button questions aren't read yet.
+- AI drafts only use your CV and profile, but read them before you press Submit: they're marked
+  "draft" on the Apply page.
+- "Applied" is set when the site's confirmation page appears. If you close the window first, the
+  Apply page asks whether you submitted it.
 
 ## Credits
 

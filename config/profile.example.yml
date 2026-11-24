@@ -40,6 +40,7 @@ candidate:
     - Mumbai
     - Remote
     # Remove cities you genuinely wouldn't relocate to.
+    # Add "- Anywhere" to scan jobs in every country, not just India and remote.
 
   career_narrative: |
     One paragraph about who you are, what you've built, and where you're heading.
@@ -82,3 +83,11 @@ application_answers:
   work_authorization_india: ""  # e.g. "Yes, Indian citizen"
   how_did_you_hear: Company careers page
   eeo_default: Prefer not to say
+  discipline: Computer Science
+  education_start_month: August   # month names, as forms list them
+  education_start_year: 2021
+  education_end_month: May
+  education_end_year: 2025
+  cgpa: ""                      # only some forms ask; leave empty if you prefer
+  class_12_percent: ""
+  class_10_percent: ""
