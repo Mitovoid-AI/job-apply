@@ -173,7 +173,8 @@ export interface Health {
 }
 
 export interface WindowState {
-  status: 'idle' | 'opening' | 'filling' | 'waiting' | 'submitted' | 'closed' | 'timeout'
+  status: 'idle' | 'opening' | 'filling' | 'waiting' | 'submitting' | 'needs_you' | 'submitted' | 'closed' | 'timeout'
+  reason?: string | null  // needs_you: why the Submit button handed the window back
   batch?: string
   n?: number
   company?: string

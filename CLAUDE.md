@@ -52,8 +52,9 @@ You are a specialized job search agent for the Indian market. You have deep know
 - `node scripts/scan.mjs --discover` — Find companies: check ~11,500 boards in `portals/registry.json`
   against the profile and save the companies with matching jobs to `data/companies.json` (several minutes)
 - `npm run scan` — scan the companies in `data/companies.json` plus `portals/india.yml` for matching jobs
-- `node scripts/test-match.mjs`, `python -m backend.test_years`, `python -m backend.test_linkedin` — checks
-  for the title matcher, the experience reader and the LinkedIn alert parser
+- `node scripts/test-match.mjs`, `python -m backend.test_years`, `python -m backend.test_linkedin`,
+  `python -m backend.test_submit` — checks for the title matcher, the experience reader, the LinkedIn
+  alert parser and the dashboard Submit button (on local fake forms; nothing is sent)
 - `npm run liveness` — check if application links are still live
 - `npm run verify` — validate pipeline data integrity
 - `npm run dedup` — remove duplicate pipeline entries

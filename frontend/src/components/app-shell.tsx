@@ -64,7 +64,7 @@ function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <p className="px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Nothing is sent until you press Submit on the real form.
+          Nothing is sent until you press Submit for that job, here or on the real form.
         </p>
       </SidebarFooter>
     </Sidebar>

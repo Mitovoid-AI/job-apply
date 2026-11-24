@@ -24,13 +24,19 @@ and Claude Code.
 - **Prepare:** after each scan, every job at your level gets a tailored resume and an answer for
   every field of its application form: profile values by rule, job-specific questions drafted by AI
   from your CV, and questions only you can answer left blank and flagged.
-- **Apply:** "Open filled form" starts Chrome **on your machine** with everything filled in and the
-  resume attached. You check it and press the site's Submit button; the confirmation page marks the
-  job Applied.
+- **Apply:** two buttons per prepared job.
+  - **Submit** (after you confirm): Chrome opens **on your machine**, fills everything, attaches the
+    resume and presses the site's Submit button. It only presses it when no required field is empty
+    and no CAPTCHA is showing; a CAPTCHA, an error or no confirmation page leaves the window for you.
+    It's disabled until every answer is filled and every AI draft approved.
+  - **Open filled form**: the same window, but you press the site's Submit button yourself.
+
+  Either way, the confirmation page marks the job Applied.
 - **Track:** a status board from "to apply" to "offer".
 
-No code ever presses Submit. You do, on the real form (or you tell Claude Code to, job by job; see
-`modes/apply.md`).
+Nothing is submitted without your click for that one job: the dashboard's Submit button, the site's
+own button, or telling Claude Code to, job by job (see `modes/apply.md`). There's no "submit all", and
+CAPTCHAs are never solved or worked around.
 
 ## Screens
 
@@ -39,7 +45,7 @@ No code ever presses Submit. You do, on the real form (or you tell Claude Code t
 | Overview | Matches, jobs that fit your experience, a funnel, and what needs your attention |
 | Jobs | Filterable table (experience, grade, status, company, posted) with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions. Import LinkedIn alert is here |
 | Pipeline | Drag-and-drop board of tracked jobs by status |
-| Apply | Prepared applications: check or edit any answer, then Open filled form and press Submit |
+| Apply | Prepared applications: check or edit any answer, approve AI drafts, then Submit (it presses the site's button for you) or Open filled form (you press it) |
 | Profile | The answers application forms ask for (notice period, CTC, LinkedIn…) |
 | Settings | Checks that Node, the tailor and Claude Code are set up |
 
@@ -133,6 +139,12 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 - Form filling is tested on Greenhouse, Lever and Ashby forms. Searchable dropdowns (school, city)
   are matched by closest name; anything that doesn't fill is listed so you fill it in the window.
   Ashby's yes/no button questions aren't read yet.
+- An automated Submit click can still be scored as a bot by a site's hidden check (Greenhouse runs
+  one), so a few applications sent with the dashboard's Submit button might be quietly flagged. The
+  dashboard can't tell. Use Open filled form for jobs you care most about.
+- The Submit button was tested on local fake forms (normal, CAPTCHA, error, empty field) and its
+  button finder on real Greenhouse, Lever and Ashby forms without clicking; no real application was
+  sent while building it.
 - AI drafts only use your CV and profile, but read them before you press Submit: they're marked
   "draft" on the Apply page.
 - "Applied" is set when the site's confirmation page appears. If you close the window first, the

@@ -191,10 +191,29 @@ def prepare_one(job_id: str):
 
 @app.post("/api/apply/batches/{name}/jobs/{n}/open")
 def open_window(name: str, n: int):
-    """Open the filled form in a Chrome window on this machine. The user presses Submit."""
-    if window.state().get("status") in ("opening", "filling", "waiting"):
+    """Open the filled form in a Chrome window on this machine. The user presses Submit themselves."""
+    if window._lock.locked():
         raise HTTPException(409, "A form window is already open. Finish or close it first.")
     return tasks.start("window", f"{name}:{n}", lambda: window.run(name, n))
+
+
+@app.post("/api/apply/batches/{name}/jobs/{n}/submit")
+def submit_from_dashboard(name: str, n: int):
+    """The user clicked Submit for this one job and confirmed: open the filled form and press the site's
+    Submit button when no required field is empty and no CAPTCHA shows; otherwise hand the window over."""
+    if window._lock.locked():
+        raise HTTPException(409, "A form window is already open. Finish or close it first.")
+    try:
+        b = apply.get_batch(name)
+    except ValueError:
+        raise HTTPException(400, "Bad batch name")
+    job = next((j for j in (b or {}).get("jobs", []) if j.get("n") == n), None)
+    if not job:
+        raise HTTPException(404, "Job not found in batch")
+    s = apply._job_summary(job)
+    if s["needs"] or s["drafts_pending"]:
+        raise HTTPException(400, f"Not ready: {s['needs']} answers missing, {s['drafts_pending']} AI drafts not approved")
+    return tasks.start("window", f"{name}:{n}", lambda: window.run(name, n, submit=True))
 
 
 @app.get("/api/apply/window")
