@@ -6,6 +6,8 @@ Each field: {key, label, required, type, options, selector, search, name?}
   search: combobox whose options only appear after typing (school, city…)
 """
 
+from urllib.parse import urlsplit
+
 from playwright.sync_api import Page
 
 ATS = {"greenhouse", "lever", "ashby"}
@@ -113,8 +115,21 @@ def read_page(page: Page) -> dict:
     return data
 
 
+def _greenhouse_embed(url: str) -> str | None:
+    """Greenhouse's embed URL for job-boards.greenhouse.io/<board>/jobs/<id>: the bare application form."""
+    parts = [p for p in urlsplit(url).path.split("/") if p]
+    if "greenhouse.io" in urlsplit(url).netloc and "jobs" in parts[1:-1]:
+        return f"https://job-boards.greenhouse.io/embed/job_app?for={parts[0]}&token={parts[parts.index('jobs') + 1]}"
+    return None
+
+
 def open_form(page: Page, url: str, source: str) -> None:
     page.goto(apply_url(url, source), wait_until="domcontentloaded", timeout=60000)
+    # Some companies (Databricks, Coinbase…) redirect their Greenhouse page to their own careers site,
+    # where the form sits in an iframe. Open Greenhouse's embed of the same form instead.
+    embed = _greenhouse_embed(url) if source == "greenhouse" else None
+    if embed and "greenhouse.io" not in urlsplit(page.url).netloc:
+        page.goto(embed, wait_until="domcontentloaded", timeout=60000)
     try:
         page.wait_for_selector("input[type=email], input[name=email], #email, #_systemfield_email", timeout=20000)
     except Exception:

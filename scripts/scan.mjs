@@ -102,7 +102,9 @@ async function fetchAshby(slug) {
 function normGH(j, co) {
   return { source:"greenhouse", company:co.name, tier:co.tier||"2",
     title:j.title||"", location:j.location?.name||"India",
-    url:j.absolute_url||`https://boards.greenhouse.io/${co.slug}/jobs/${j.id}`,
+    // Some boards' absolute_url is the company's own careers site (?gh_jid=), which the JD reader
+    // and form filler can't use; the Greenhouse link redirects there in a browser anyway.
+    url:/greenhouse\.io\//.test(j.absolute_url||"") ? j.absolute_url : `https://job-boards.greenhouse.io/${co.slug}/jobs/${j.id}`,
     posted_at:j.updated_at||j.created_at||null, department:j.departments?.[0]?.name||"",
     remote:(j.location?.name||"").toLowerCase().includes("remote"),
     snippet:(j.content||"").replace(/<[^>]*>/g," ").slice(0,300) };
