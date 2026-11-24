@@ -38,7 +38,10 @@ export default function OverviewPage() {
     <AppShell title="Overview">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Matches in last scan" value={c?.matches} hint={`${data?.scan_errors ?? 0} boards unreachable`} />
+          <Stat label="Matches in last scan" value={c?.matches}
+            hint={data?.scan_errors
+              ? `Didn't answer: ${data.scan_failed?.length ? data.scan_failed.join(', ') : `${data.scan_errors} boards`}. Scan again to retry.`
+              : 'Every company board answered'} />
           <Stat label="Fit your experience" value={c?.fits} hint="Asks no more years than you have" />
           <Stat label="To apply" value={c?.to_apply} hint="Tracked, not applied yet" />
           <Stat label="Applied" value={c?.applied} hint={`${c?.interviewing ?? 0} interviewing · ${c?.offers ?? 0} offers`} />

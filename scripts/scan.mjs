@@ -29,8 +29,9 @@ function readConfig() {
   let inRoles = false;
   for (const line of text.split("\n")) {
     if (line.trim().startsWith("target_roles:")) { inRoles = true; continue; }
-    if (inRoles && line.match(/^\s{4}- /)) roles.push(line.replace(/^\s{4}- /, "").trim());
-    else if (inRoles && !line.match(/^\s{4}/)) inRoles = false;
+    const item = line.match(/^\s*- (.+)$/);  // any indentation: "  - x" or "    - x"
+    if (inRoles && item) roles.push(item[1].trim());
+    else if (inRoles && line.trim()) inRoles = false;
   }
   const expMatch = text.match(/experience_years:\s*([\d.]+)/);
   const expYears = expMatch ? parseFloat(expMatch[1]) : 2;
@@ -60,10 +61,14 @@ function readPortals() {
 }
 
 // ── ATS fetchers ──────────────────────────────────────────────────────────────
+// Lever's API often takes 3–6 s per board and slower under load, so allow 25 s; boards that
+// still fail are retried once, one at a time, after the first pass.
+const TIMEOUT_MS = 25000;
+
 async function fetchGreenhouse(slug) {
   try {
     const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`,
-      { headers: { "User-Agent": "career-ops-india/1.0" }, signal: AbortSignal.timeout(12000) });
+      { headers: { "User-Agent": "career-ops-india/1.0" }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return { jobs: [], err: `HTTP ${res.status}` };
     const d = await res.json();
     return { jobs: d.jobs || [] };
@@ -73,7 +78,7 @@ async function fetchGreenhouse(slug) {
 async function fetchLever(slug) {
   try {
     const res = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json`,
-      { headers: { "User-Agent": "career-ops-india/1.0" }, signal: AbortSignal.timeout(12000) });
+      { headers: { "User-Agent": "career-ops-india/1.0" }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return { jobs: [], err: `HTTP ${res.status}` };
     const d = await res.json();
     return { jobs: Array.isArray(d) ? d : [] };
@@ -84,7 +89,7 @@ async function fetchAshby(slug) {
   try {
     const res = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`,
       { headers: { "User-Agent": "career-ops-india/1.0", "Accept": "application/json" },
-        signal: AbortSignal.timeout(12000) });
+        signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return { jobs: [], err: `HTTP ${res.status}` };
     const d = await res.json();
     return { jobs: d.jobs || d.jobPostings || [] };   // the API returns "jobs"
@@ -157,7 +162,7 @@ const jsonMode = args.includes("--json");
 
 const { roles, expYears } = readConfig();
 const portals = readPortals();
-const results = [], errors = [];
+const results = [], errors = [], retry = [];
 
 if (!jsonMode) {
   console.log(`\n🔍 career-ops-india scanner`);
@@ -171,7 +176,7 @@ async function scanBoard(name, companies, fetcher, normalizer) {
   const tasks = companies.map(async co => {
     if (co.note?.includes("current employer")) return;
     const { jobs, err } = await fetcher(co.slug);
-    if (err) { errors.push({ company: co.name, error: err }); return; }
+    if (err) { retry.push({ co, fetcher, normalizer, err }); return; }
     const matched = jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears));
     if (matched.length && !jsonMode) process.stdout.write(` ${co.name}(${matched.length})`);
     results.push(...matched);
@@ -183,6 +188,14 @@ async function scanBoard(name, companies, fetcher, normalizer) {
 await scanBoard("greenhouse", portals.greenhouse, fetchGreenhouse, normGH);
 await scanBoard("lever",      portals.lever,      fetchLever,      normLV);
 await scanBoard("ashby",      portals.ashby,      fetchAshby,      normAB);
+
+// Second chance for boards that timed out or errored, one at a time.
+for (const { co, fetcher, normalizer, err: firstErr } of retry) {
+  const { jobs, err } = await fetcher(co.slug);
+  if (err) { errors.push({ company: co.name, error: err || firstErr }); continue; }
+  results.push(...jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears)));
+}
+if (retry.length && !jsonMode) console.log(`Retried ${retry.length} board(s): ${retry.length - errors.length} recovered`);
 
 // Dedup by title+company
 const seen = new Set();
@@ -199,7 +212,7 @@ unique.sort((a,b) => (a.tier === "1" ? -1 : 1) - (b.tier === "1" ? -1 : 1));
 const dataDir = path.join(ROOT, "data");
 fs.mkdirSync(dataDir, { recursive: true });
 const out = { scanned_at: new Date().toISOString(), total: unique.length,
-              errors: errors.length, jobs: unique };
+              errors: errors.length, failed: errors, jobs: unique };
 fs.writeFileSync(path.join(dataDir, "scan_results.json"), JSON.stringify(out, null, 2));
 
 if (jsonMode) { console.log(JSON.stringify(out)); process.exit(0); }

@@ -75,6 +75,7 @@ export interface JobDetail extends Job {
 export interface Overview {
   last_scan: string | null
   scan_errors: number
+  scan_failed?: string[]
   counts: {
     matches: number; fits: number; to_apply: number; applied: number
     interviewing: number; offers: number; rejected: number

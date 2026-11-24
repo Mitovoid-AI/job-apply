@@ -107,6 +107,7 @@ def overview() -> dict:
     return {
         "last_scan": scan.get("scanned_at"),
         "scan_errors": scan.get("errors", 0),
+        "scan_failed": [f.get("company") for f in scan.get("failed", [])],
         "counts": {
             "matches": len([j for j in jobs if j["in_scan"]]),
             "fits": len([j for j in jobs if j["in_scan"] and (j["fit"] or {}).get("level") == "fits"]),
