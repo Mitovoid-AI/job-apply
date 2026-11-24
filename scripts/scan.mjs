@@ -35,7 +35,9 @@ function readConfig() {
   }
   const expMatch = text.match(/experience_years:\s*([\d.]+)/);
   const expYears = expMatch ? parseFloat(expMatch[1]) : 2;
-  return { roles, expYears };
+  // "Anywhere" (or "Worldwide") in the locations list turns off the India location filter.
+  const anywhere = /^\s*locations:[^\n]*\n(?:\s*[-#][^\n]*\n)*?\s*-\s*["']?(anywhere|worldwide)\b/im.test(text);
+  return { roles, expYears, anywhere };
 }
 
 // ── Portals loader ────────────────────────────────────────────────────────────
@@ -141,13 +143,13 @@ const NOISE_TERMS = ["senior director","vp ","vice president","head of","princip
 // skip senior titles while experience_years is under 3.
 const SENIOR_TERMS = ["senior","sr.","sr ","lead","manager","architect","director"];
 
-function matches(job, roles, maxExp) {
+function matches(job, roles, maxExp, anywhere) {
   const t = job.title.toLowerCase();
   const c = job.snippet.toLowerCase();
   const loc = job.location.toLowerCase();
   const titleMatch = roles.some(r => t.includes(r.toLowerCase())) || AI_TITLE.test(t);
   const kwMatch = !titleMatch && AI_KEYWORDS.filter(k => c.includes(k)).length >= 3;
-  const locMatch = job.remote || !job.location || loc.includes("india") ||
+  const locMatch = anywhere || job.remote || !job.location || loc.includes("india") ||
     ["bangalore","bengaluru","hyderabad","mumbai","delhi","ncr","pune","chennai","gurgaon","gurugram","noida","remote"]
       .some(l => loc.includes(l));
   const noNoise = !NOISE_TERMS.some(n => t.includes(n));
@@ -169,13 +171,14 @@ const args = process.argv.slice(2);
 const boardFilter = args.find(a => a.startsWith("--board="))?.split("=")[1];
 const jsonMode = args.includes("--json");
 
-const { roles, expYears } = readConfig();
+const { roles, expYears, anywhere } = readConfig();
 const portals = readPortals();
 const results = [], errors = [], retry = [];
 
 if (!jsonMode) {
   console.log(`\n🔍 career-ops-india scanner`);
   console.log(`   Roles: ${roles.join(", ")}`);
+  console.log(`   Locations: ${anywhere ? "anywhere" : "India and remote"}`);
   console.log(`   Companies: ${portals.greenhouse.length + portals.lever.length + portals.ashby.length}\n`);
 }
 
@@ -186,7 +189,7 @@ async function scanBoard(name, companies, fetcher, normalizer) {
     if (co.note?.includes("current employer")) return;
     const { jobs, err } = await fetcher(co.slug);
     if (err) { retry.push({ co, fetcher, normalizer, err }); return; }
-    const matched = jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears));
+    const matched = jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears, anywhere));
     if (matched.length && !jsonMode) process.stdout.write(` ${co.name}(${matched.length})`);
     results.push(...matched);
   });
@@ -202,14 +205,14 @@ await scanBoard("ashby",      portals.ashby,      fetchAshby,      normAB);
 for (const { co, fetcher, normalizer, err: firstErr } of retry) {
   const { jobs, err } = await fetcher(co.slug);
   if (err) { errors.push({ company: co.name, error: err || firstErr }); continue; }
-  results.push(...jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears)));
+  results.push(...jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears, anywhere)));
 }
 if (retry.length && !jsonMode) console.log(`Retried ${retry.length} board(s): ${retry.length - errors.length} recovered`);
 
-// Dedup by title+company
+// Dedup by title+company+location (without location, a same-title job abroad could hide the India one)
 const seen = new Set();
 const unique = results.filter(j => {
-  const key = `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}`;
+  const key = `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}|${(j.location || "").toLowerCase().trim()}`;
   if (seen.has(key)) return false;
   seen.add(key); return true;
 });
