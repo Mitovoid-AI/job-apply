@@ -1,6 +1,7 @@
 """Run the dashboard: python -m backend [--no-browser] [--port N]"""
 
 import argparse
+import subprocess
 import sys
 import threading
 import time
@@ -23,6 +24,19 @@ def _daily_scan(at: str) -> None:
         time.sleep(30)
 
 
+def _open_browser(url: str) -> None:
+    """DASHBOARD_BROWSER if set (e.g. a specific browser's .exe), else the system default."""
+    exe = settings.DASHBOARD_BROWSER
+    if exe:
+        profile = [f"--user-data-dir={settings.DASHBOARD_BROWSER_PROFILE}"] if settings.DASHBOARD_BROWSER_PROFILE else []
+        try:
+            subprocess.Popen([exe, *profile, url], close_fds=True)
+            return
+        except OSError as e:
+            print(f"Couldn't start DASHBOARD_BROWSER ({e}); using the default browser", flush=True)
+    webbrowser.open(url)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="python -m backend")
     ap.add_argument("--no-browser", action="store_true", help="don't open the browser")
@@ -40,7 +54,7 @@ def main() -> None:
         threading.Thread(target=_daily_scan, args=(settings.DAILY_SCAN_AT,), daemon=True).start()
         print(f"Daily scan at {settings.DAILY_SCAN_AT}", flush=True)
     if not args.no_browser:
-        threading.Timer(1.0, webbrowser.open, args=(url,)).start()
+        threading.Timer(1.0, _open_browser, args=(url,)).start()
     uvicorn.run(app, host=settings.HOST, port=args.port, log_level="warning")
 
 

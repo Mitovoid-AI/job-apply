@@ -57,7 +57,9 @@ terminal and use `/login`.
 python -m backend          # or double-click start-dashboard.cmd
 ```
 
-It prints a link like `http://127.0.0.1:8765/#token=…` and opens it. Double-click `dashboard.pyw`
+It prints a link like `http://127.0.0.1:8765/#token=…` and opens it in your default browser, or in
+`DASHBOARD_BROWSER` if set (for a Chromium-based browser that wraps Brave or Chrome, also set
+`DASHBOARD_BROWSER_PROFILE` to its profile folder so the link opens in the running window). Double-click `dashboard.pyw`
 to run it without a console window (logs go to `data/dashboard.log`). To scan every morning, set
 `DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running.
 
