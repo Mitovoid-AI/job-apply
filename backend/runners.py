@@ -28,6 +28,9 @@ def scan() -> dict:
     found = [j for j in jobs.list_jobs() if j["in_scan"]]
     fetched = jd.refresh(found)
     scan_data = jobs.load_scan()
+    if settings.AUTO_PREPARE:  # resumes + form answers for new jobs at your level, in the background
+        from . import prepare, tasks
+        tasks.start("prepare", "auto", prepare.prepare_new)
     return {"total": scan_data.get("total", 0), "unreachable": scan_data.get("errors", 0),
             "jds_fetched": fetched}
 

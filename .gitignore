@@ -22,3 +22,6 @@ Thumbs.db
 
 # File-store lock files
 *.lock
+
+# Chrome profile for the apply window
+data/browser-profile/

@@ -138,6 +138,38 @@ def set_result(name: str, n: int, status: str, note: str = "") -> dict:
     return store.update_json(_path(name), {}, change)
 
 
+def add_job(name: str, job: dict) -> int:
+    """Add (or replace, if not yet submitted) a prepared job in batch `name`. Returns its number."""
+    out = {}
+
+    def change(b):
+        b.setdefault("name", name)
+        b.setdefault("created_at", datetime.now().isoformat(timespec="seconds"))
+        jobs_ = b.setdefault("jobs", [])
+        old = next((j for j in jobs_ if j.get("job_id") == job.get("job_id")
+                    and (j.get("result") or {}).get("status") != "submitted"), None)
+        n = old["n"] if old else max([j.get("n", 0) for j in jobs_] + [0]) + 1
+        if old:
+            jobs_.remove(old)
+        jobs_.append({**job, "n": n})
+        jobs_.sort(key=lambda j: j["n"])
+        out["n"] = n
+        return b
+
+    store.update_json(_path(name), {}, change)
+    return out["n"]
+
+
+def prepared_job_ids() -> set[str]:
+    """Jobs already sitting in some batch (prepared or submitted)."""
+    ids = set()
+    for p in settings.APPLY_DIR.glob("*.json"):
+        for j in (store.read_json(p, {}) or {}).get("jobs", []):
+            if j.get("job_id"):
+                ids.add(j["job_id"])
+    return ids
+
+
 def update_job(name: str, n: int, fields: list[dict], ready: bool | None) -> dict | None:
     """Edit field values / draft approvals and the ready flag of job n in a batch."""
     def change(b):

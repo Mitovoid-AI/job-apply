@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import apply, jd, jobs, profile, runners, settings, tasks
+from . import apply, jd, jobs, llm, prepare, profile, runners, settings, tasks, window
 
 
 def load_token() -> str:
@@ -60,6 +60,9 @@ def health():
         "profile": settings.PROFILE.exists(),
         "cv": settings.CV.exists(),
         "daily_scan_at": settings.DAILY_SCAN_AT or None,
+        "llm": llm.available(),
+        "auto_prepare": sorted(settings.AUTO_PREPARE),
+        "auto_evaluate": settings.AUTO_EVALUATE,
     }
 
 
@@ -159,6 +162,41 @@ def build_resume(job_id: str):
 def evaluate(job_id: str):
     job = _job_or_404(job_id)
     return tasks.start("evaluate", job_id, lambda: runners.evaluate(job))
+
+
+@app.post("/api/jobs/{job_id}/prepare")
+def prepare_one(job_id: str):
+    job = _job_or_404(job_id)
+    return tasks.start("prepare", job_id, lambda: prepare.prepare_job(job))
+
+
+@app.post("/api/apply/batches/{name}/jobs/{n}/open")
+def open_window(name: str, n: int):
+    """Open the filled form in a Chrome window on this machine. The user presses Submit."""
+    if window.state().get("status") in ("opening", "filling", "waiting"):
+        raise HTTPException(409, "A form window is already open. Finish or close it first.")
+    return tasks.start("window", f"{name}:{n}", lambda: window.run(name, n))
+
+
+@app.get("/api/apply/window")
+def window_state():
+    return window.state()
+
+
+@app.post("/api/apply/batches/{name}/jobs/{n}/submitted")
+def mark_submitted(name: str, n: int):
+    """The user says they submitted it (e.g. closed the window before the confirmation showed)."""
+    try:
+        b = apply.get_batch(name)
+    except ValueError:
+        raise HTTPException(400, "Bad batch name")
+    job = next((j for j in (b or {}).get("jobs", []) if j.get("n") == n), None)
+    if not job:
+        raise HTTPException(404, "Job not found in batch")
+    window._record(name, job, "you confirmed it on the dashboard")
+    if window.state().get("batch") == name and window.state().get("n") == n:
+        window._set(status="submitted", proof="confirmed by you")
+    return apply.get_batch(name)
 
 
 class PipelinePatch(BaseModel):

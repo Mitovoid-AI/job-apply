@@ -47,5 +47,10 @@ PORT = int(os.environ.get("DASHBOARD_PORT", "8765"))
 # Daily scan time "HH:MM" (local), empty = off.
 DAILY_SCAN_AT = os.environ.get("DAILY_SCAN_AT", "").strip()
 
+# After each scan, prepare applications for jobs with these experience badges (empty = off).
+AUTO_PREPARE = {s.strip() for s in os.environ.get("AUTO_PREPARE", "fits,stretch").split(",") if s.strip()}
+# Also grade prepared jobs with headless Claude Code (needs `claude` signed in).
+AUTO_EVALUATE = os.environ.get("AUTO_EVALUATE", "1").strip() not in ("0", "false", "no", "")
+
 for d in (DATA, REPORTS, APPLY_DIR, JD_CACHE):
     d.mkdir(parents=True, exist_ok=True)

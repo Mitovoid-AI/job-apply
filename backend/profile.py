@@ -7,8 +7,11 @@ ANSWER_KEYS = [
     "current_company", "current_title", "total_experience_years", "highest_degree",
     "university", "graduation_year", "notice_period", "current_ctc_lpa", "expected_ctc_lpa",
     "willing_to_relocate", "work_authorization_india", "how_did_you_hear", "eeo_default",
+    "discipline", "education_start_month", "education_start_year", "education_end_month",
+    "education_end_year", "cgpa", "class_12_percent", "class_10_percent",
 ]
-OPTIONAL = {"current_ctc_lpa", "portfolio", "github"}
+# Only some forms ask these; an empty one is flagged on the job that needs it.
+OPTIONAL = {"current_ctc_lpa", "portfolio", "github", "cgpa", "class_12_percent", "class_10_percent"}
 CANDIDATE_KEYS = ["experience_years", "locations", "target_roles"]
 SALARY_KEYS = ["min", "max", "walk_away"]
 
