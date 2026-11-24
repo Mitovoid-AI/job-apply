@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AppShell } from '@/components/app-shell'
 import { CompanyAvatar, FitBadge } from '@/components/badges'
 import { api } from '@/lib/api'
-import type { Job, Overview } from '@/lib/types'
+import type { BatchSummary, Job, Overview } from '@/lib/types'
 
 const chartConfig = { value: { label: 'Jobs', color: 'var(--chart-2)' } } satisfies ChartConfig
 
@@ -29,6 +29,8 @@ const NEED_LINK: Record<string, string> = { profile: '/profile', batch: '/apply'
 export default function OverviewPage() {
   const { data } = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/overview') })
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => api<Job[]>('/jobs') })
+  const { data: batches = [] } = useQuery({ queryKey: ['batches'], queryFn: () => api<BatchSummary[]>('/apply/batches') })
+  const ready = batches.reduce((n, b) => n + b.jobs - b.submitted, 0)
   const picks = jobs
     .filter(j => j.in_scan && !j.pipeline && (j.fit?.level === 'fits' || j.fit?.level === 'stretch'))
     .slice(0, 5)
@@ -37,6 +39,15 @@ export default function OverviewPage() {
   return (
     <AppShell title="Overview">
       <div className="space-y-4">
+        {ready > 0 && (
+          <Link to="/apply" className="flex items-center gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm hover:bg-emerald-500/15">
+            <CheckCircle2 className="size-4 text-emerald-600" />
+            <span className="flex-1">
+              {ready} application{ready === 1 ? ' is' : 's are'} prepared. Check {ready === 1 ? 'it' : 'them'} and press Submit.
+            </span>
+            <ArrowRight className="size-4" />
+          </Link>
+        )}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Matches in last scan" value={c?.matches}
             hint={data?.scan_errors

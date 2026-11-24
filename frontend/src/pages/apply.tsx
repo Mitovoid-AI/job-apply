@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
-import { AlertTriangle, Check, Copy, ExternalLink, FileText, Send, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Check, Copy, ExternalLink, FileText, Loader2, MonitorUp, Send, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { AppShell } from '@/components/app-shell'
-import { CompanyAvatar, GradeBadge } from '@/components/badges'
+import { CompanyAvatar, FitBadge, GradeBadge } from '@/components/badges'
+import { useTasks } from '@/components/tasks'
 import { api, patch, pdfUrl } from '@/lib/api'
-import type { Batch, BatchField, BatchJob, BatchSummary } from '@/lib/types'
+import type { Batch, BatchField, BatchJob, BatchSummary, WindowState } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const SOURCE_STYLE: Record<BatchField['source'], string> = {
@@ -88,8 +89,64 @@ function FieldRow({ field, onSave }: { field: BatchField; onSave: (edit: Partial
   )
 }
 
+function WindowBanner() {
+  const qc = useQueryClient()
+  const { isRunning } = useTasks()
+  const open = isRunning('window')
+  const confirm = useMutation({
+    mutationFn: (w: WindowState) => api(`/apply/batches/${w.batch}/jobs/${w.n}/submitted`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries()
+      toast.success('Marked as applied')
+    },
+    onError: e => toast.error((e as Error).message),
+  })
+  const { data } = useQuery({
+    queryKey: ['window'],
+    queryFn: () => api<WindowState>('/apply/window'),
+    refetchInterval: open ? 2000 : false,
+  })
+  if (!data || data.status === 'idle') return null
+  const who = `${data.company} · ${data.role}`
+  const text: Record<WindowState['status'], string> = {
+    idle: '',
+    opening: `Opening ${who} in a Chrome window…`,
+    filling: `Filling the form for ${who}…`,
+    waiting: `Your turn: check the Chrome window for ${who} and press Submit there.`,
+    submitted: `${who}: submitted. It's marked Applied in your pipeline.`,
+    closed: `${who}: the window was closed. Nothing was submitted.`,
+    timeout: `${who}: the window timed out. Nothing was submitted.`,
+  }
+  const left = [...(data.missing ?? []), ...(data.problems ?? []).map(p => p.label)]
+  return (
+    <div className={cn('rounded-md border p-3 text-sm',
+      data.status === 'submitted' ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-sky-500/30 bg-sky-500/10')}>
+      <div className="flex items-center gap-2">
+        {['opening', 'filling'].includes(data.status) && <Loader2 className="size-4 animate-spin" />}
+        {data.status === 'submitted' && <Check className="size-4 text-emerald-600" />}
+        <span>{text[data.status]}</span>
+      </div>
+      {data.status === 'waiting' && left.length > 0 && (
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+          Fill these in the window yourself: {[...new Set(left)].join(' · ')}
+        </p>
+      )}
+      {(data.status === 'closed' || data.status === 'timeout') && (
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <span>Did you press Submit before closing it?</span>
+          <Button size="sm" variant="outline" onClick={() => confirm.mutate(data)} disabled={confirm.isPending}>
+            Yes, mark as applied
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function JobBlock({ batch, job }: { batch: string; job: BatchJob }) {
   const qc = useQueryClient()
+  const { start, isRunning } = useTasks()
+  const opening = isRunning('window', `${batch}:${job.n}`)
   const save = useMutation({
     mutationFn: (body: { fields?: Partial<BatchField>[]; ready?: boolean }) =>
       patch<Batch>(`/apply/batches/${batch}/jobs/${job.n}`, { fields: body.fields ?? [], ready: body.ready ?? null }),
@@ -115,6 +172,7 @@ function JobBlock({ batch, job }: { batch: string; job: BatchJob }) {
           <CardTitle className="truncate text-base">{job.role}</CardTitle>
           <p className="truncate text-sm text-muted-foreground">{job.company}</p>
         </div>
+        {job.fit && <FitBadge fit={job.fit} />}
         <GradeBadge grade={job.grade} />
         {job.resume_pdf && (
           <Button variant="ghost" size="sm" asChild>
@@ -151,12 +209,26 @@ function JobBlock({ batch, job }: { batch: string; job: BatchJob }) {
         )}
         {!done && (
           <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+            <Button onClick={() => !opening && start(`/apply/batches/${batch}/jobs/${job.n}/open`, `Form for ${job.company}`)}>
+              {opening ? <Loader2 className="animate-spin" /> : <MonitorUp />}
+              {opening ? 'Form window open…' : 'Open filled form'}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Opens Chrome on this laptop with every answer filled and your resume attached. Check it, then press
+              Submit there.{job.summary.needs ? ` ${job.summary.needs} answer${job.summary.needs === 1 ? '' : 's'} left for you to fill in.` : ''}
+            </span>
+          </div>
+        )}
+        {!done && (
+          <div className="flex flex-wrap items-center gap-3">
             <Switch id={`ready-${job.n}`} checked={job.ready}
               onCheckedChange={v => {
                 if (v && blockedReason) toast.warning(`Not ready yet: ${blockedReason}`)
                 else save.mutate({ ready: v })
               }} />
-            <Label htmlFor={`ready-${job.n}`}>Ready to submit</Label>
+            <Label htmlFor={`ready-${job.n}`} className="text-xs font-normal text-muted-foreground">
+              Or mark ready for Claude Code to submit
+            </Label>
             {blockedReason && <span className="text-xs text-amber-700 dark:text-amber-400">{blockedReason}</span>}
           </div>
         )}
@@ -189,10 +261,10 @@ export default function ApplyPage() {
       {!isLoading && batches.length === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
           <Send className="size-8 text-muted-foreground" />
-          <h2 className="text-base font-medium">No apply batches yet</h2>
+          <h2 className="text-base font-medium">No applications prepared yet</h2>
           <p className="text-sm text-muted-foreground">
-            In Claude Code (opened in this repo), run <code className="rounded bg-muted px-1">/apply</code> with the jobs you
-            want. Claude reads each form, builds the resumes and saves a batch here for you to review.
+            After each scan, jobs at your level are prepared here automatically: tailored resume, every form answer, and
+            a grade. You can also open any job and press Prepare application.
           </p>
         </div>
       ) : (
@@ -225,6 +297,7 @@ export default function ApplyPage() {
                   changes and asks once before submitting.
                 </p>
               )}
+              <WindowBanner />
               {batch.jobs.map(j => <JobBlock key={j.n} batch={batch.name} job={j} />)}
 
               <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">

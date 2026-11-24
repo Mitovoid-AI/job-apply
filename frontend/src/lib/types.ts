@@ -86,7 +86,7 @@ export interface Overview {
 
 export interface Task {
   id: string
-  kind: 'scan' | 'resume' | 'evaluate'
+  kind: 'scan' | 'resume' | 'evaluate' | 'prepare' | 'window'
   key: string
   status: 'running' | 'done' | 'error'
   started_at: string
@@ -123,6 +123,10 @@ export interface BatchJob {
   company: string
   role: string
   url: string
+  source?: string
+  fit?: Fit | null
+  prepared_at?: string
+  grade_error?: string | null
   grade?: string
   resume_pdf?: string
   ready: boolean
@@ -160,4 +164,18 @@ export interface Health {
   profile: boolean
   cv: boolean
   daily_scan_at: string | null
+  llm: boolean
+  auto_prepare: string[]
+  auto_evaluate: boolean
+}
+
+export interface WindowState {
+  status: 'idle' | 'opening' | 'filling' | 'waiting' | 'submitted' | 'closed' | 'timeout'
+  batch?: string
+  n?: number
+  company?: string
+  role?: string
+  problems?: { label: string; error: string }[]
+  missing?: string[]
+  proof?: string
 }

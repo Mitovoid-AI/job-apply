@@ -20,11 +20,21 @@ interface TasksContext {
 const Ctx = createContext<TasksContext | null>(null)
 
 const defaultLabel = (t: Task) =>
-  t.kind === 'scan' ? 'Scan' : t.kind === 'resume' ? 'Resume build' : 'Evaluation'
+  ({ scan: 'Scan', resume: 'Resume build', evaluate: 'Evaluation', prepare: 'Preparing applications', window: 'Form window' })[t.kind]
 
 function doneMessage(t: Task, label: string) {
   const r = (t.result ?? {}) as Record<string, unknown>
   if (t.kind === 'scan') return `Scan finished: ${r.total ?? 0} matches`
+  if (t.kind === 'prepare') {
+    if (Array.isArray(r.prepared)) {
+      const n = r.prepared.length
+      return n ? `${n} application${n === 1 ? '' : 's'} ready to check on the Apply page` : 'No new jobs at your level to prepare'
+    }
+    return `${r.company ?? label} is ready: ${r.needs ?? 0} answer${r.needs === 1 ? '' : 's'} for you, ${r.drafts ?? 0} AI draft${r.drafts === 1 ? '' : 's'}`
+  }
+  if (t.kind === 'window') {
+    return r.status === 'submitted' ? `${r.company}: application submitted` : `${r.company}: window closed, nothing submitted`
+  }
   if (t.kind === 'resume') {
     const pages = Number(r.page_count ?? 0)
     return `${label}: ${r.base ?? 'resume'}, ${pages} page${pages === 1 ? '' : 's'}`

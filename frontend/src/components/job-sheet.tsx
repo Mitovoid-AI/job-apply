@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ExternalLink, FileText, Loader2, Plus, Sparkles } from 'lucide-react'
+import { ExternalLink, FileText, ListChecks, Loader2, Plus, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -60,6 +60,8 @@ export function JobSheet({ jobId, onClose }: { jobId: string | null; onClose: ()
   const p = job?.pipeline
   const evaluating = !!jobId && isRunning('evaluate', jobId)
   const building = !!jobId && isRunning('resume', jobId)
+  const preparing = !!jobId && (isRunning('prepare', jobId) || isRunning('prepare', 'auto'))
+  const canPrepare = ['greenhouse', 'lever', 'ashby'].includes(job?.source ?? '')
 
   return (
     <Sheet open={!!jobId} onOpenChange={open => !open && onClose()}>
@@ -88,6 +90,12 @@ export function JobSheet({ jobId, onClose }: { jobId: string | null; onClose: ()
             </SheetHeader>
 
             <div className="flex flex-wrap gap-2 px-4 pb-4">
+              {canPrepare && !['applied', 'hr_screen', 'technical', 'final_round', 'offer', 'accepted'].includes(p?.status ?? '') && (
+                <Button size="sm" onClick={() => !preparing && start(`/jobs/${job.id}/prepare`, `Application for ${job.company}`)}>
+                  {preparing ? <Loader2 className="animate-spin" /> : <ListChecks />}
+                  {preparing ? 'Preparing… (about a minute)' : 'Prepare application'}
+                </Button>
+              )}
               {!p && (
                 <Button size="sm" variant="outline" onClick={() => track.mutate()} disabled={track.isPending}>
                   <Plus /> Track
@@ -103,6 +111,7 @@ export function JobSheet({ jobId, onClose }: { jobId: string | null; onClose: ()
               </Button>
               <Button
                 size="sm"
+                variant="outline"
                 onClick={() => !building && start(`/jobs/${job.id}/resume`, `Resume for ${job.company}`)}
               >
                 {building ? <Loader2 className="animate-spin" /> : <FileText />}

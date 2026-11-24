@@ -10,7 +10,8 @@ const CHECKS: { key: keyof Health; label: string; fix: string }[] = [
   { key: 'tailor', label: 'Resume tailor (TAILOR_DIR)', fix: 'Set TAILOR_DIR in .env to the folder with tailor.py.' },
   { key: 'claude', label: 'Claude Code CLI (Evaluate)', fix: 'Install Claude Code or set CLAUDE_BIN in .env.' },
   { key: 'profile', label: 'config/profile.yml', fix: 'Copy config/profile.example.yml to config/profile.yml.' },
-  { key: 'cv', label: 'cv.md (used by Evaluate)', fix: 'Create cv.md with your CV in Markdown.' },
+  { key: 'cv', label: 'cv.md (used by Evaluate and AI drafts)', fix: 'Create cv.md with your CV in Markdown.' },
+  { key: 'llm', label: 'AI key for drafting form answers', fix: 'Set LLM_API_KEY or OPENROUTER_API_KEY in .env (or in the tailor’s .env).' },
 ]
 
 export default function SettingsPage() {
@@ -40,6 +41,17 @@ export default function SettingsPage() {
         </Card>
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Auto-prepare</CardTitle>
+            <CardDescription>Set AUTO_PREPARE and AUTO_EVALUATE in .env and restart the dashboard.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {data?.auto_prepare?.length
+              ? `After each scan, jobs marked ${data.auto_prepare.join(' or ')} get a tailored resume and every form answer prepared${data.auto_evaluate ? ', plus a grade' : ''}.`
+              : 'Off'}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Daily scan</CardTitle>
             <CardDescription>Set DAILY_SCAN_AT in .env (e.g. 09:00) and restart the dashboard.</CardDescription>
           </CardHeader>
@@ -52,8 +64,9 @@ export default function SettingsPage() {
             <CardTitle className="text-base">How submitting works</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>This dashboard never submits applications. In Claude Code (opened in this repo), run /apply to prepare a
-              batch, review and fix it on the Apply page, then paste the submit command into Claude Code.</p>
+            <p>This dashboard never submits applications. On the Apply page, Open filled form starts a Chrome window on
+              this laptop with every answer filled and your resume attached; you press Submit there. Once the site
+              confirms, the job is marked Applied.</p>
             <p>The dashboard only listens on 127.0.0.1. Its access token is in data/.dashboard-token.</p>
           </CardContent>
         </Card>
