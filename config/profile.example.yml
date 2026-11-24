@@ -40,6 +40,7 @@ candidate:
     - Mumbai
     - Remote
     # Remove cities you genuinely wouldn't relocate to.
+    # Add "- Anywhere" to scan jobs in every country, not just India and remote.
 
   career_narrative: |
     One paragraph about who you are, what you've built, and where you're heading.

@@ -4,7 +4,9 @@ Find, evaluate, tailor and track job applications at Indian companies, with a lo
 and Claude Code.
 
 - **Find:** scans the public job boards (Greenhouse, Lever, Ashby) of the companies in
-  `portals/india.yml` and reads how many years of experience each job asks for.
+  `portals/india.yml` and reads how many years of experience each job asks for. AI/ML jobs
+  outside your `target_roles` (Data Scientist, SDE - AI…) are labelled adjacent and hidden on
+  the Jobs page until you switch them on.
 - **Evaluate:** grades a job A–F against your CV, using Claude Code in the background.
 - **Tailor:** builds a one-page resume for the job with your own resume tailor (a separate repo
   with `tailor.py --json`).
@@ -98,7 +100,8 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 - Only 14 of the 253 companies inherited from career-ops-india have a job board that responds on
   Greenhouse, Lever or Ashby. The rest are kept in `portals/india-unverified.yml` and aren't
-  scanned. Add companies to `portals/india.yml` once you've checked their board URL.
+  scanned. `portals/india.yml` also has 17 global companies with India AI/ML jobs (31 boards in
+  all). Add companies there once you've checked their board URL.
 - The experience badge reads the first "N years" requirement in the description. It's a quick
   filter, not a grade.
 - Application forms with a CAPTCHA or a login stop and hand over to you. There is no CAPTCHA

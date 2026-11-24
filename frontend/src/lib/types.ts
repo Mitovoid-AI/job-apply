@@ -62,6 +62,7 @@ export interface Job {
   department: string
   remote: boolean
   in_scan: boolean
+  match?: 'core' | 'adjacent' | null
   fit: Fit | null
   pipeline: PipelineEntry | null
 }

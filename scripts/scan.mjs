@@ -35,7 +35,9 @@ function readConfig() {
   }
   const expMatch = text.match(/experience_years:\s*([\d.]+)/);
   const expYears = expMatch ? parseFloat(expMatch[1]) : 2;
-  return { roles, expYears };
+  // "Anywhere" (or "Worldwide") in the locations list turns off the India location filter.
+  const anywhere = /^\s*locations:[^\n]*\n(?:\s*[-#][^\n]*\n)*?\s*-\s*["']?(anywhere|worldwide)\b/im.test(text);
+  return { roles, expYears, anywhere };
 }
 
 // ── Portals loader ────────────────────────────────────────────────────────────
@@ -100,7 +102,9 @@ async function fetchAshby(slug) {
 function normGH(j, co) {
   return { source:"greenhouse", company:co.name, tier:co.tier||"2",
     title:j.title||"", location:j.location?.name||"India",
-    url:j.absolute_url||`https://boards.greenhouse.io/${co.slug}/jobs/${j.id}`,
+    // Some boards' absolute_url is the company's own careers site (?gh_jid=), which the JD reader
+    // and form filler can't use; the Greenhouse link redirects there in a browser anyway.
+    url:/greenhouse\.io\//.test(j.absolute_url||"") ? j.absolute_url : `https://job-boards.greenhouse.io/${co.slug}/jobs/${j.id}`,
     posted_at:j.updated_at||j.created_at||null, department:j.departments?.[0]?.name||"",
     remote:(j.location?.name||"").toLowerCase().includes("remote"),
     snippet:(j.content||"").replace(/<[^>]*>/g," ").slice(0,300) };
@@ -141,13 +145,13 @@ const NOISE_TERMS = ["senior director","vp ","vice president","head of","princip
 // skip senior titles while experience_years is under 3.
 const SENIOR_TERMS = ["senior","sr.","sr ","lead","manager","architect","director"];
 
-function matches(job, roles, maxExp) {
+function matches(job, roles, maxExp, anywhere) {
   const t = job.title.toLowerCase();
   const c = job.snippet.toLowerCase();
   const loc = job.location.toLowerCase();
   const titleMatch = roles.some(r => t.includes(r.toLowerCase())) || AI_TITLE.test(t);
   const kwMatch = !titleMatch && AI_KEYWORDS.filter(k => c.includes(k)).length >= 3;
-  const locMatch = job.remote || !job.location || loc.includes("india") ||
+  const locMatch = anywhere || job.remote || !job.location || loc.includes("india") ||
     ["bangalore","bengaluru","hyderabad","mumbai","delhi","ncr","pune","chennai","gurgaon","gurugram","noida","remote"]
       .some(l => loc.includes(l));
   const noNoise = !NOISE_TERMS.some(n => t.includes(n));
@@ -155,18 +159,28 @@ function matches(job, roles, maxExp) {
   return (titleMatch || kwMatch) && locMatch && noNoise && levelOk;
 }
 
+// "core" = the title names one of your target_roles, or an AI/ML term followed by engineer/developer
+// ("ML Ops Engineer", "AI/ML Engineer II"). Other matches (Data Scientist, SDE - AI, AI Infrastructure)
+// are "adjacent"; the dashboard hides them unless you switch them on.
+const CORE_TITLE = /\b(ai|ml|llm|llms|genai|gen ai|nlp|machine learning|generative ai|computer vision)\b.*\b(engineer|developer)\b|\bmle\b/;
+function roleMatch(job, roles) {
+  const t = job.title.toLowerCase();
+  return roles.some(r => t.includes(r.toLowerCase())) || CORE_TITLE.test(t) ? "core" : "adjacent";
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const boardFilter = args.find(a => a.startsWith("--board="))?.split("=")[1];
 const jsonMode = args.includes("--json");
 
-const { roles, expYears } = readConfig();
+const { roles, expYears, anywhere } = readConfig();
 const portals = readPortals();
 const results = [], errors = [], retry = [];
 
 if (!jsonMode) {
   console.log(`\n🔍 career-ops-india scanner`);
   console.log(`   Roles: ${roles.join(", ")}`);
+  console.log(`   Locations: ${anywhere ? "anywhere" : "India and remote"}`);
   console.log(`   Companies: ${portals.greenhouse.length + portals.lever.length + portals.ashby.length}\n`);
 }
 
@@ -177,7 +191,7 @@ async function scanBoard(name, companies, fetcher, normalizer) {
     if (co.note?.includes("current employer")) return;
     const { jobs, err } = await fetcher(co.slug);
     if (err) { retry.push({ co, fetcher, normalizer, err }); return; }
-    const matched = jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears));
+    const matched = jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears, anywhere));
     if (matched.length && !jsonMode) process.stdout.write(` ${co.name}(${matched.length})`);
     results.push(...matched);
   });
@@ -193,17 +207,19 @@ await scanBoard("ashby",      portals.ashby,      fetchAshby,      normAB);
 for (const { co, fetcher, normalizer, err: firstErr } of retry) {
   const { jobs, err } = await fetcher(co.slug);
   if (err) { errors.push({ company: co.name, error: err || firstErr }); continue; }
-  results.push(...jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears)));
+  results.push(...jobs.map(j => normalizer(j, co)).filter(j => matches(j, roles, expYears, anywhere)));
 }
 if (retry.length && !jsonMode) console.log(`Retried ${retry.length} board(s): ${retry.length - errors.length} recovered`);
 
-// Dedup by title+company
+// Dedup by title+company+location (without location, a same-title job abroad could hide the India one)
 const seen = new Set();
 const unique = results.filter(j => {
-  const key = `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}`;
+  const key = `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}|${(j.location || "").toLowerCase().trim()}`;
   if (seen.has(key)) return false;
   seen.add(key); return true;
 });
+for (const j of unique) j.match = roleMatch(j, roles);
+const coreCount = unique.filter(j => j.match === "core").length;
 
 // Sort: tier 1 first, then by source
 unique.sort((a,b) => (a.tier === "1" ? -1 : 1) - (b.tier === "1" ? -1 : 1));
@@ -218,7 +234,7 @@ fs.writeFileSync(path.join(dataDir, "scan_results.json"), JSON.stringify(out, nu
 if (jsonMode) { console.log(JSON.stringify(out)); process.exit(0); }
 
 console.log(`\n${"─".repeat(50)}`);
-console.log(`✅ ${unique.length} matching jobs found  |  ⚠️  ${errors.length} companies unreachable`);
+console.log(`✅ ${unique.length} matching jobs found (${coreCount} in your target roles)  |  ⚠️  ${errors.length} companies unreachable`);
 console.log(`${"─".repeat(50)}\n`);
 
 if (unique.length === 0) {
