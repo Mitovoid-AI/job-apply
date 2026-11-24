@@ -1,0 +1,99 @@
+# portals/india.yml — Indian companies whose ATS job board responds.
+# Checked 2026-11-24: every entry below returned HTTP 200 from its Greenhouse / Lever / Ashby API.
+# Adapted from career-ops-india (MIT, see THIRD_PARTY_NOTICES.md); unreachable entries moved to
+# india-unverified.yml.
+#
+# To add a company: find its board slug, check the URL returns JSON, then add 4 lines.
+#   greenhouse: https://boards-api.greenhouse.io/v1/boards/SLUG/jobs
+#   lever:      https://api.lever.co/v0/postings/SLUG?mode=json
+#   ashby:      https://api.ashbyhq.com/posting-api/job-board/SLUG
+
+greenhouse:
+
+  - name: Druva
+    slug: druva
+    tier: "2"
+    domain: cloud/data
+    hq: Pune
+
+  - name: InMobi
+    slug: inmobi
+    tier: "1"
+    domain: adtech
+    hq: Bangalore
+
+  - name: Sigmoid
+    slug: sigmoid
+    tier: "2"
+    domain: data engineering
+    hq: Bangalore
+
+  - name: Groww
+    slug: groww
+    tier: "1"
+    domain: fintech/investment
+    hq: Bangalore
+
+  - name: Zenoti
+    slug: zenoti
+    tier: "2"
+    domain: SaaS/wellness
+    hq: Hyderabad
+
+  - name: Observe.AI
+    slug: observeai
+    tier: "2"
+    domain: AI/contact center
+    hq: Bangalore
+
+  - name: CloudSEK
+    slug: cloudsek
+    tier: "2"
+    domain: cybersecurity/AI
+    hq: Bangalore
+
+lever:
+
+  - name: CRED
+    slug: cred
+    tier: "1"
+    domain: fintech
+    hq: Bangalore
+
+  - name: Meesho
+    slug: meesho
+    tier: "1"
+    domain: social commerce
+    hq: Bangalore
+
+  - name: Mindtickle
+    slug: mindtickle
+    tier: "2"
+    domain: SaaS/sales enablement
+    hq: Pune
+
+  - name: Fampay
+    slug: fampay
+    tier: "2"
+    domain: neobank/teen
+    hq: Bangalore
+
+  - name: Zeta Suite
+    slug: zeta
+    tier: "2"
+    domain: HR/benefits SaaS
+    hq: Bangalore
+
+  - name: Pocket FM
+    slug: pocketfm
+    tier: "2"
+    domain: audio content
+    hq: Bangalore
+
+ashby:
+
+  - name: Sarvam AI
+    slug: sarvam
+    tier: "1"
+    domain: AI/LLM
+    hq: Bangalore
