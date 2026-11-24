@@ -18,6 +18,9 @@ from ruamel.yaml import YAML
 _yaml = YAML()            # round-trip mode: keeps comments and key order
 _yaml.preserve_quotes = True
 _yaml.width = 4096
+# Lists as "    - item" under their key, like the hand-written profile.yml (other readers,
+# e.g. scripts/scan.mjs, may expect that layout).
+_yaml.indent(mapping=2, sequence=4, offset=2)
 
 
 @contextmanager
