@@ -145,6 +145,25 @@ def scan():
     return tasks.start("scan", "all", runners.scan)
 
 
+@app.post("/api/discover")
+def discover():
+    """Find companies (a few minutes), then scan them."""
+    return tasks.start("discover", "all", runners.discover)
+
+
+class AlertText(BaseModel):
+    text: str
+
+
+@app.post("/api/linkedin/import")
+def linkedin_import(body: AlertText):
+    """Add the jobs in a pasted LinkedIn job-alert email. LinkedIn itself isn't contacted."""
+    from . import linkedin
+    if len(body.text) > 3_000_000:
+        raise HTTPException(400, "That's too long for one alert email")
+    return linkedin.import_text(body.text)
+
+
 @app.post("/api/jobs/{job_id}/track")
 def track(job_id: str):
     job = _job_or_404(job_id)
@@ -227,9 +246,11 @@ def put_profile(body: ProfileUpdate):
     if not settings.PROFILE.exists():
         raise HTTPException(400, "config/profile.yml doesn't exist yet: copy config/profile.example.yml")
     try:
-        return profile.update_profile(body.answers, body.candidate, body.salary)
+        saved = profile.update_profile(body.answers, body.candidate, body.salary)
     except (TypeError, ValueError) as e:
         raise HTTPException(400, f"Invalid value: {e}")
+    # The Profile page starts Find companies when this says the roles or locations changed.
+    return {**saved, "company_list_stale": runners.discovery_stale()}
 
 
 class BatchJobPatch(BaseModel):

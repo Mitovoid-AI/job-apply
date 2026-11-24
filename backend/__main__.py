@@ -14,13 +14,17 @@ from . import runners, settings, tasks
 
 
 def _daily_scan(at: str) -> None:
-    """Start a scan once a day at HH:MM while the dashboard is running."""
+    """Start a scan once a day at HH:MM while the dashboard is running. When the company list is
+    missing, a week old or out of date with the profile, run Find companies (it ends with a scan)."""
     last = None
     while True:
         now = datetime.now()
         if now.strftime("%H:%M") == at and last != now.date():
             last = now.date()
-            tasks.start("scan", "all", runners.scan)
+            if runners.discovery_stale():
+                tasks.start("discover", "all", runners.discover)
+            else:
+                tasks.start("scan", "all", runners.scan)
         time.sleep(30)
 
 

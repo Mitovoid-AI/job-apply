@@ -4,6 +4,9 @@
   "description": "Job scanner and pipeline scripts (no dependencies). The dashboard frontend lives in frontend/.",
   "scripts": {
     "scan": "node scripts/scan.mjs",
+    "discover": "node scripts/scan.mjs --discover",
+    "registry": "node scripts/update-registry.mjs",
+    "test": "node scripts/test-match.mjs",
     "verify": "node scripts/verify-pipeline.mjs",
     "liveness": "node scripts/check-liveness.mjs",
     "dedup": "node scripts/dedup-tracker.mjs"

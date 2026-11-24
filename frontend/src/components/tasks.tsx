@@ -20,15 +20,22 @@ interface TasksContext {
 const Ctx = createContext<TasksContext | null>(null)
 
 const defaultLabel = (t: Task) =>
-  ({ scan: 'Scan', resume: 'Resume build', evaluate: 'Evaluation', prepare: 'Preparing applications', window: 'Form window' })[t.kind]
+  ({ scan: 'Scan', discover: 'Finding companies', resume: 'Resume build', evaluate: 'Evaluation',
+     prepare: 'Preparing applications', window: 'Form window' })[t.kind]
 
 function doneMessage(t: Task, label: string) {
   const r = (t.result ?? {}) as Record<string, unknown>
   if (t.kind === 'scan') return `Scan finished: ${r.total ?? 0} matches`
+  if (t.kind === 'discover') {
+    const scan = (r.scan ?? {}) as Record<string, unknown>
+    return `Found ${r.companies ?? 0} companies with jobs for your roles. Scan finished: ${scan.total ?? 0} matches`
+  }
   if (t.kind === 'prepare') {
     if (Array.isArray(r.prepared)) {
       const n = r.prepared.length
-      return n ? `${n} application${n === 1 ? '' : 's'} ready to check on the Apply page` : 'No new jobs at your level to prepare'
+      const waiting = Number(r.waiting ?? 0)
+      const more = waiting ? ` (${waiting} more at your level: use Prepare on the Jobs page, or scan again)` : ''
+      return n ? `${n} application${n === 1 ? '' : 's'} ready to check on the Apply page${more}` : 'No new jobs at your level to prepare'
     }
     return `${r.company ?? label} is ready: ${r.needs ?? 0} answer${r.needs === 1 ? '' : 's'} for you, ${r.drafts ?? 0} AI draft${r.drafts === 1 ? '' : 's'}`
   }

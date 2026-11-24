@@ -3,10 +3,21 @@
 Find, evaluate, tailor and track job applications at Indian companies, with a local dashboard
 and Claude Code.
 
-- **Find:** scans the public job boards (Greenhouse, Lever, Ashby) of the companies in
-  `portals/india.yml` and reads how many years of experience each job asks for. AI/ML jobs
-  outside your `target_roles` (Data Scientist, SDE - AI…) are labelled adjacent and hidden on
-  the Jobs page until you switch them on.
+- **Find:** two steps, both driven by the `target_roles`, `experience_years` and `locations` in your
+  profile.
+  - **Find companies** checks about 11,500 company job boards on Greenhouse, Lever and Ashby (the
+    list in `portals/registry.json`) and keeps the companies with jobs for your roles in
+    `data/companies.json`. It takes several minutes, runs on its own when your roles or locations
+    change and once a week (with `DAILY_SCAN_AT` set), and has its own button.
+  - **Scan now** checks today's openings at those companies plus the starting list in
+    `portals/india.yml`, then reads how many years of experience each job asks for.
+
+  A job matches when its title names one of your roles (the role's words in order, at most one
+  extra word between them, or "Engineer, Machine Learning" style). If your roles are AI/ML, other
+  AI/ML titles (Data Scientist, SDE - AI…) also show, labelled adjacent and hidden on the Jobs page
+  until you switch them on. Add `- Anywhere` to `locations` to search every country.
+- **LinkedIn alerts:** paste a LinkedIn job-alert email on the Jobs page (or drop `.eml` files in
+  `data/linkedin-alerts/`) to add its jobs. Only the email is read; LinkedIn isn't contacted.
 - **Evaluate:** grades a job A–F against your CV, using Claude Code in the background.
 - **Tailor:** builds a one-page resume for the job with your own resume tailor (a separate repo
   with `tailor.py --json`).
@@ -26,7 +37,7 @@ No code ever presses Submit. You do, on the real form (or you tell Claude Code t
 | Screen | What it does |
 |---|---|
 | Overview | Matches, jobs that fit your experience, a funnel, and what needs your attention |
-| Jobs | Filterable table with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions |
+| Jobs | Filterable table (experience, grade, status, company, posted) with an experience badge (fits / stretch / too senior). Click a job for its description, evaluation, resume preview and actions. Import LinkedIn alert is here |
 | Pipeline | Drag-and-drop board of tracked jobs by status |
 | Apply | Prepared applications: check or edit any answer, then Open filled form and press Submit |
 | Profile | The answers application forms ask for (notice period, CTC, LinkedIn…) |
@@ -63,7 +74,12 @@ It prints a link like `http://127.0.0.1:8765/#token=…` and opens it in your de
 `DASHBOARD_BROWSER` if set (for a Chromium-based browser that wraps Brave or Chrome, also set
 `DASHBOARD_BROWSER_PROFILE` to its profile folder so the link opens in the running window). Double-click `dashboard.pyw`
 to run it without a console window (logs go to `data/dashboard.log`). To scan every morning, set
-`DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running.
+`DAILY_SCAN_AT=09:00` in `.env`; the scan runs while the dashboard is running. When the company list
+is missing, a week old or out of date with your profile, that morning run is Find companies instead
+(it ends with a scan).
+
+On a new install, save your roles on the Profile page: that starts Find companies. From the
+command line: `node scripts/scan.mjs --discover`, then `npm run scan`.
 
 Frontend development: run the backend, then `npm --prefix frontend run dev` and open the Vite
 URL with the same `#token=…`.
@@ -90,6 +106,8 @@ Everything stays in local files; there is no database:
 | `cv.md` | your CV |
 | `data/pipeline.json` | tracked jobs |
 | `data/scan_results.json`, `data/jd/` | latest scan and cached job descriptions |
+| `data/companies.json`, `data/registry_dead.json` | your company list from Find companies; boards that answered 404 (skipped for 30 days) |
+| `data/linkedin_jobs.json`, `data/linkedin-alerts/` | jobs imported from LinkedIn alerts (kept 30 days); the folder for alert `.eml` files |
 | `data/apply/*.json` | apply batches |
 | `reports/` | evaluation reports |
 
@@ -98,12 +116,18 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 ## Limits
 
-- Only 14 of the 253 companies inherited from career-ops-india have a job board that responds on
-  Greenhouse, Lever or Ashby. The rest are kept in `portals/india-unverified.yml` and aren't
-  scanned. `portals/india.yml` also has 17 global companies with India AI/ML jobs (31 boards in
-  all). Add companies there once you've checked their board URL.
-- The experience badge reads the first "N years" requirement in the description. It's a quick
-  filter, not a grade.
+- Only Greenhouse, Lever and Ashby boards are searched. Companies on Workday (blocked by a bot
+  check from most machines), Darwinbox, Keka, Zoho Recruit, TurboHire or their own sites aren't.
+  A measurement of Keka, Zoho Recruit and TurboHire tenants for 238 Indian companies found 12
+  AI/ML jobs in all, so they aren't added yet. `portals/india-unverified.yml` keeps the
+  career-ops-india companies whose boards didn't respond.
+- `portals/registry.json` is a snapshot; refresh it with `node scripts/update-registry.mjs`.
+- The experience badge reads the first required "N years" in the description (time frames like
+  "over the next 2 years", degrees and company history are skipped; "preferred" years cap the badge
+  at stretch). It's a quick filter, not a grade.
+- LinkedIn alert jobs can't be auto-prepared, evaluated or turned into a resume automatically,
+  because their pages aren't read. The alert parser was tested on hand-written samples, not on a
+  real alert.
 - Application forms with a CAPTCHA or a login stop and hand over to you. There is no CAPTCHA
   workaround, by design.
 - Form filling is tested on Greenhouse, Lever and Ashby forms. Searchable dropdowns (school, city)
@@ -118,4 +142,6 @@ All of these are gitignored. The dashboard only listens on `127.0.0.1`, rejects 
 
 The scanner, Claude Code modes and company list are adapted from
 [career-ops-india](https://github.com/AnojSKunte/career-ops-india) by Anoj S K (MIT), itself
-inspired by [career-ops](https://github.com/santifer/career-ops). See `THIRD_PARTY_NOTICES.md`.
+inspired by [career-ops](https://github.com/santifer/career-ops). The company registry in
+`portals/registry.json` comes from career-ops's employer registry (CC BY 4.0, see
+`portals/registry-NOTICE.md`). See `THIRD_PARTY_NOTICES.md`.

@@ -22,7 +22,10 @@ def _tail(s: str, n: int = 600) -> str:
 
 
 def scan() -> dict:
-    r = _run([settings.NODE_BIN, "scripts/scan.mjs"], settings.ROOT, timeout=300)
+    from . import linkedin
+    alerts = linkedin.import_inbox()  # LinkedIn alert .eml files dropped in data/linkedin-alerts/
+    # Up to 15 min: with a big company list from Find companies there can be hundreds of boards.
+    r = _run([settings.NODE_BIN, "scripts/scan.mjs"], settings.ROOT, timeout=900)
     if r.returncode != 0:
         raise RuntimeError(f"Scan failed: {_tail(r.stderr or r.stdout)}")
     found = [j for j in jobs.list_jobs() if j["in_scan"]]
@@ -32,7 +35,53 @@ def scan() -> dict:
         from . import prepare, tasks
         tasks.start("prepare", "auto", prepare.prepare_new)
     return {"total": scan_data.get("total", 0), "unreachable": scan_data.get("errors", 0),
-            "jds_fetched": fetched}
+            "jds_fetched": fetched, "linkedin_added": alerts["added"]}
+
+
+_LINKEDIN_ONLY = ("This job came from a LinkedIn alert, and LinkedIn pages aren't read automatically "
+                  "(LinkedIn doesn't allow it). Open the posting to read it and apply.")
+
+
+def discover() -> dict:
+    """Find companies: check every board in portals/registry.json against the profile, save the ones
+    with matching jobs to data/companies.json, then scan them (which also starts auto-prepare)."""
+    r = _run([settings.NODE_BIN, "scripts/scan.mjs", "--discover", "--json"], settings.ROOT, timeout=3600)
+    if r.returncode != 0:
+        raise RuntimeError(f"Find companies failed: {_tail(r.stderr or r.stdout)}")
+    try:
+        found = json.loads((r.stdout or "").strip().splitlines()[-1])
+    except (json.JSONDecodeError, IndexError):
+        raise RuntimeError(f"Find companies gave no summary: {_tail(r.stdout)}")
+    return {**found, "scan": scan()}
+
+
+def discovery_info() -> dict | None:
+    data = store.read_json(settings.COMPANIES, None)
+    if not data:
+        return None
+    return {"at": data.get("discovered_at"), "companies": len(data.get("companies", [])),
+            "boards_checked": data.get("boards_checked", 0), "stale": discovery_stale(data)}
+
+
+def _norm_list(xs) -> list[str]:
+    return sorted({str(x).strip().lower() for x in (xs or []) if str(x).strip()})
+
+
+def discovery_stale(data: dict | None = None) -> str | None:
+    """Why the company list needs rebuilding ("missing", "profile_changed", "old"), or None if fresh."""
+    from .profile import get_profile
+    data = data if data is not None else store.read_json(settings.COMPANIES, None)
+    if not data:
+        return "missing"
+    cand = (get_profile() or {}).get("candidate") or {}
+    anywhere = any(str(l).strip().lower() in ("anywhere", "worldwide") for l in cand.get("locations") or [])
+    if _norm_list(data.get("roles")) != _norm_list(cand.get("target_roles")) or bool(data.get("anywhere")) != anywhere:
+        return "profile_changed"
+    try:
+        found_at = datetime.fromisoformat(str(data.get("discovered_at")).replace("Z", "+00:00"))
+    except ValueError:
+        return "old"
+    return "old" if (datetime.now().astimezone() - found_at).days >= 7 else None
 
 
 def _ensure_tracked(job: dict) -> dict:
@@ -42,6 +91,8 @@ def _ensure_tracked(job: dict) -> dict:
 
 
 def resume(job: dict) -> dict:
+    if job.get("source") == "linkedin":  # the tailor would open the LinkedIn page
+        raise RuntimeError(_LINKEDIN_ONLY)
     if not settings.TAILOR_DIR or not (settings.TAILOR_DIR / "tailor.py").exists():
         raise RuntimeError("TAILOR_DIR in .env doesn't point to the resume tailor repo (tailor.py not found)")
     cmd = [settings.TAILOR_PYTHON, "tailor.py", "--jd", job["url"], "--company", job["company"], "--json"]
@@ -78,6 +129,8 @@ Job description:
 
 
 def evaluate(job: dict) -> dict:
+    if job.get("source") == "linkedin":
+        raise RuntimeError(_LINKEDIN_ONLY)
     cached = jd.ensure(job) or {}
     if not cached.get("text"):
         raise RuntimeError("Couldn't fetch the job description for this posting")

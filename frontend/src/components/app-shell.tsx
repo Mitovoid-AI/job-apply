@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { NavLink, useLocation } from 'react-router'
 import { useTheme } from 'next-themes'
 import {
-  BriefcaseBusiness, KanbanSquare, LayoutDashboard, Loader2, Moon, RefreshCw, Send, Settings, Sun, UserRound,
+  BriefcaseBusiness, Building2, KanbanSquare, LayoutDashboard, Loader2, Moon, RefreshCw, Send, Settings, Sun, UserRound,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -83,18 +83,31 @@ function ThemeToggle() {
 
 export function ScanButton({ variant = 'outline' }: { variant?: 'outline' | 'default' }) {
   const { start, isRunning } = useTasks()
-  const running = isRunning('scan')
+  const running = isRunning('scan') || isRunning('discover')  // Find companies ends with a scan
   return (
-    <Button variant={variant} size="sm" onClick={() => !running && start('/scan', 'Scan')}>
+    <Button variant={variant} size="sm" disabled={isRunning('discover')} onClick={() => !running && start('/scan', 'Scan')}
+      title="Check today's openings at your companies">
       {running ? <Loader2 className="animate-spin" /> : <RefreshCw />}
       {running ? 'Scanning…' : 'Scan now'}
     </Button>
   )
 }
 
+export function FindCompaniesButton({ variant = 'ghost' }: { variant?: 'ghost' | 'outline' | 'default' }) {
+  const { start, isRunning } = useTasks()
+  const running = isRunning('discover')
+  return (
+    <Button variant={variant} size="sm" onClick={() => !running && start('/discover', 'Finding companies')}
+      title="Check about 11,500 company job boards for your roles and update your company list (a few minutes). Runs on its own every week and when you change your roles.">
+      {running ? <Loader2 className="animate-spin" /> : <Building2 />}
+      <span className="hidden sm:inline">{running ? 'Finding companies…' : 'Find companies'}</span>
+    </Button>
+  )
+}
+
 function RunningTasks() {
   const { tasks } = useTasks()
-  const running = tasks.filter(t => t.status === 'running' && t.kind !== 'scan')
+  const running = tasks.filter(t => t.status === 'running' && t.kind !== 'scan' && t.kind !== 'discover')
   if (running.length === 0) return null
   return (
     <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
@@ -116,10 +129,12 @@ export function AppShell({ title, actions, children }: { title: string; actions?
           <h1 className="text-base font-medium">{title}</h1>
           <span className="hidden text-xs text-muted-foreground sm:inline">
             Last scan {ago(overview.data?.last_scan)}
+            {overview.data?.companies ? ` · ${overview.data.companies.companies} companies found ${ago(overview.data.companies.at)}` : ''}
           </span>
           <div className="ml-auto flex items-center gap-2">
             <RunningTasks />
             {actions}
+            <FindCompaniesButton />
             <ScanButton />
             <ThemeToggle />
           </div>

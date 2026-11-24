@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import {
@@ -19,6 +19,7 @@ import { AppShell, ScanButton } from '@/components/app-shell'
 import { CompanyAvatar, FitBadge, GradeBadge, StatusBadge } from '@/components/badges'
 import { FacetFilter, type FacetOption } from '@/components/facet-filter'
 import { JobSheet } from '@/components/job-sheet'
+import { LinkedInImport } from '@/components/linkedin-import'
 import { useTasks } from '@/components/tasks'
 import { api, post } from '@/lib/api'
 import { FIT_LABEL, STATUS_LABEL, ago } from '@/lib/format'
@@ -28,6 +29,15 @@ const FIT_ORDER: Record<string, number> = { fits: 0, stretch: 1, unknown: 2, sen
 const fitKey = (j: Job) => j.fit?.level ?? 'unknown'
 const statusKey = (j: Job) => j.pipeline?.status ?? 'new'
 const gradeKey = (j: Job) => j.pipeline?.grade ?? 'none'
+const POSTED_LABEL: Record<string, string> = {
+  week: '7 days or less', month: '8–30 days', quarter: '31–90 days', older: 'Over 90 days', none: 'No date',
+}
+const POSTED_ORDER: Record<string, number> = { week: 0, month: 1, quarter: 2, older: 3, none: 4 }
+function postedKey(j: Job) {
+  if (!j.posted_at) return 'none'
+  const days = (Date.now() - new Date(j.posted_at).getTime()) / 864e5
+  return Number.isNaN(days) ? 'none' : days <= 7 ? 'week' : days <= 30 ? 'month' : days <= 90 ? 'quarter' : 'older'
+}
 
 function facet(jobs: Job[], key: (j: Job) => string, label: (v: string) => string, order?: (v: string) => number): FacetOption[] {
   const counts = new Map<string, number>()
@@ -52,8 +62,11 @@ export default function JobsPage() {
   const [grades, setGrades] = useState<string[]>([])
   const [statuses, setStatuses] = useState<string[]>([])
   const [companies, setCompanies] = useState<string[]>([])
+  const [posted, setPosted] = useState<string[]>([])
   const [showAdjacent, setShowAdjacent] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'fit', desc: false }])
+  // A worldwide company list can mean thousands of jobs: draw 200 rows at a time.
+  const [limit, setLimit] = useState(200)
 
   const { data: jobs = [], isLoading } = useQuery({ queryKey: ['jobs'], queryFn: () => api<Job[]>('/jobs') })
   const track = useMutation({
@@ -72,10 +85,12 @@ export default function JobsPage() {
       (!fits.length || fits.includes(fitKey(j))) &&
       (!grades.length || grades.includes(gradeKey(j))) &&
       (!statuses.length || statuses.includes(statusKey(j))) &&
-      (!companies.length || companies.includes(j.company)),
+      (!companies.length || companies.includes(j.company)) &&
+      (!posted.length || posted.includes(postedKey(j))),
     )
-  }, [jobs, showAdjacent, search, fits, grades, statuses, companies])
+  }, [jobs, showAdjacent, search, fits, grades, statuses, companies, posted])
   const adjacentCount = jobs.filter(j => j.match === 'adjacent').length
+  useEffect(() => setLimit(200), [filtered, sorting])
 
   const columns = useMemo<ColumnDef<Job>[]>(() => [
     {
@@ -91,6 +106,7 @@ export default function JobsPage() {
               {j.company}
               {j.tier === '1' && ' · Tier 1'}
               {j.match === 'adjacent' && ' · adjacent role'}
+              {j.source === 'linkedin' && ' · from a LinkedIn alert'}
               {!j.in_scan && ' · not in latest scan'}
             </div>
           </div>
@@ -184,17 +200,18 @@ export default function JobsPage() {
     getSortedRowModel: getSortedRowModel(),
   })
 
-  const anyFilter = search || fits.length || grades.length || statuses.length || companies.length
+  const anyFilter = search || fits.length || grades.length || statuses.length || companies.length || posted.length
   const clear = () => {
     setSearch('')
     setFits([])
     setGrades([])
     setStatuses([])
     setCompanies([])
+    setPosted([])
   }
 
   return (
-    <AppShell title="Jobs">
+    <AppShell title="Jobs" actions={<LinkedInImport />}>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input placeholder="Filter jobs" value={search} onChange={e => setSearch(e.target.value)} className="h-8 w-48" />
@@ -206,6 +223,8 @@ export default function JobsPage() {
             options={facet(jobs, statusKey, v => (v === 'new' ? 'New' : STATUS_LABEL[v as keyof typeof STATUS_LABEL] ?? v))} />
           <FacetFilter title="Company" selected={companies} onChange={setCompanies}
             options={facet(jobs, j => j.company, v => v)} />
+          <FacetFilter title="Posted" selected={posted} onChange={setPosted}
+            options={facet(jobs, postedKey, v => POSTED_LABEL[v] ?? v, v => POSTED_ORDER[v] ?? 9)} />
           {anyFilter ? (
             <Button variant="ghost" size="sm" onClick={clear}>
               Reset <X />
@@ -245,7 +264,7 @@ export default function JobsPage() {
                   </TableRow>
                 ))
               ) : table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map(row => (
+                table.getRowModel().rows.slice(0, limit).map(row => (
                   <TableRow key={row.id} className="cursor-pointer" onClick={() => setOpen(row.original.id)}
                     data-state={row.original.id === openId ? 'selected' : undefined}>
                     {row.getVisibleCells().map(cell => (
@@ -271,6 +290,13 @@ export default function JobsPage() {
             </TableBody>
           </Table>
         </div>
+        {filtered.length > limit && (
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" onClick={() => setLimit(l => l + 200)}>
+              Show 200 more ({filtered.length - limit} not shown)
+            </Button>
+          </div>
+        )}
       </div>
       <JobSheet jobId={openId} onClose={() => setOpen(null)} />
     </AppShell>
