@@ -1,0 +1,21 @@
+# Personal data: never commit
+cv.md
+config/profile.yml
+data/*
+!data/.gitkeep
+reports/*
+!reports/.gitkeep
+.env
+
+# Node / build
+node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
